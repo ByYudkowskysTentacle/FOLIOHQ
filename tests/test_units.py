@@ -1,0 +1,109 @@
+from unittest import mock
+
+import pytest
+
+from folio_chq import delivery
+from folio_chq.config import load_config
+from folio_chq.dates import fmt, norm
+
+
+def test_norm_dates():
+    assert norm("2024-03-01T23:30:00.000-05:00") == "2024-03-02T04:30:00"
+    assert norm("2024-03-01") == "2024-03-01T00:00:00"
+    assert norm("not a date") is None
+    from zoneinfo import ZoneInfo
+    assert fmt("2024-03-02T04:30:00Z", "%Y-%m-%d", ZoneInfo("America/New_York")) == "2024-03-01"
+
+
+def test_config_rejects_unknown_column(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("output:\n  items_csv:\n    columns:\n      - {header: X, field: nope}\n")
+    with pytest.raises(ValueError, match="Unknown items_csv column"):
+        load_config(p)
+
+
+def test_config_env_substitution(tmp_path, monkeypatch):
+    monkeypatch.setenv("FOLIO_PASSWORD", "s3cret")
+    monkeypatch.setenv("FOLIO_URL", "https://folio.example.edu")
+    p = tmp_path / "c.yaml"
+    p.write_text("folio:\n  tenant: t\n")
+    cfg = load_config(p)
+    assert cfg["folio"]["password"] == "s3cret"
+    assert cfg["folio"]["base_url"] == "https://folio.example.edu"
+
+
+def test_sftp_uploads_atomically(tmp_path):
+    f = tmp_path / "x.csv"
+    f.write_text("a")
+    with mock.patch("paramiko.SSHClient") as ssh:
+        sftp = ssh.return_value.open_sftp.return_value
+        out = delivery.deliver_sftp([f], {"host": "h", "username": "u", "remote_dir": "/in", "host_key_fingerprint": "SHA256:abc"})
+    sftp.put.assert_called_once_with(str(f), "/in/x.csv.part", confirm=True)
+    sftp.posix_rename.assert_called_once_with("/in/x.csv.part", "/in/x.csv")
+    assert out == ["/in/x.csv"]
+
+
+def test_fingerprint_format():
+    key = mock.Mock()
+    key.asbytes.return_value = b"key-bytes"
+    assert delivery.sha256_fingerprint(key).startswith("SHA256:")
+
+
+def test_long_field_is_truncated_and_readable():
+    from io import BytesIO
+
+    from pymarc import Field, Indicators, MARCReader, Record, Subfield
+
+    from folio_chq.config import DEFAULTS
+    from folio_chq.marc import MarcBuilder
+
+    rec = Record(leader="00000nam a2200000 a 4500")
+    rec.add_field(Field(tag="001", data="x"))
+    rec.add_field(Field(tag="245", indicators=Indicators("0", "0"), subfields=[Subfield("a", "T")]))
+    rec.add_field(Field(tag="505", indicators=Indicators("0", " "), subfields=[Subfield("a", "é" * 8000)]))
+    mb = MarcBuilder(DEFAULTS, lambda n, v: v)
+    data = mb.finalize(rec, {"hrid": "in1"}, [{"barcode": "B1"}])
+    assert mb.long_fields == 1
+    out = next(MARCReader(BytesIO(data), to_unicode=True, force_utf8=True))
+    assert out is not None and out["001"].data == "in1" and out["949"]["a"] == "B1"
+    assert len(out["505"]["a"].encode()) < 9999
+
+
+def test_legacy_dates_keep_their_day_in_local_timezone():
+    from zoneinfo import ZoneInfo
+
+    tz = ZoneInfo("America/Chicago")
+    assert fmt(norm("3/15/1998", tz), "%Y-%m-%d", tz) == "1998-03-15"
+    assert fmt(norm("1998-03-15", tz), "%Y-%m-%d", tz) == "1998-03-15"
+
+
+def test_sftp_renames_only_after_all_uploads(tmp_path):
+    a, b = tmp_path / "a.mrc", tmp_path / "b.csv"
+    a.write_text("a")
+    b.write_text("b")
+    with mock.patch("paramiko.SSHClient") as ssh:
+        sftp = ssh.return_value.open_sftp.return_value
+        sftp.put.side_effect = [None, OSError("connection lost")]
+        with pytest.raises(OSError):
+            delivery.deliver_sftp([a, b], {"host": "h", "username": "u", "host_key_fingerprint": "SHA256:x"})
+    sftp.posix_rename.assert_not_called()
+
+
+def test_login_retries_transient_errors(monkeypatch):
+    from folio_chq import client as cm
+
+    monkeypatch.setattr(cm.time, "sleep", lambda s: None)
+    c = cm.FolioClient("http://folio", "t", "u", "p")
+    calls = {"n": 0}
+
+    def fake_login():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise cm._TransientLoginError("502")
+        c._token = "tok"
+
+    monkeypatch.setattr(c, "login", fake_login)
+    resp = mock.Mock(status_code=200, ok=True, content=b"{}", json=lambda: {"ok": 1})
+    monkeypatch.setattr(c.session, "request", lambda *a, **k: resp)
+    assert c.get("/x") == {"ok": 1}
+    assert calls["n"] == 2

@@ -1,0 +1,13 @@
+# /etc/systemd/system/folio-chq.service
+[Unit]
+Description=FOLIO extract for collectionHQ
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=folio-chq
+WorkingDirectory=/opt/folio-chq
+# FOLIO_PASSWORD=..., SFTP_PASSWORD=... (chmod 600)
+EnvironmentFile=/opt/folio-chq/.env
+ExecStart=/opt/folio-chq/venv/bin/folio-chq -c /opt/folio-chq/config.yaml run

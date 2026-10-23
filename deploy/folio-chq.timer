@@ -1,0 +1,12 @@
+# /etc/systemd/system/folio-chq.timer
+# Enable with: systemctl enable --now folio-chq.timer
+[Unit]
+Description=Weekly FOLIO extract for collectionHQ
+
+[Timer]
+OnCalendar=Sun *-*-* 02:15:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

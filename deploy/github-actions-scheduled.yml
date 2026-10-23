@@ -1,0 +1,62 @@
+# Example: run the extract weekly from GitHub Actions.
+# Copy to .github/workflows/ in a PRIVATE repository that holds your config.yaml.
+# Secrets to add (Settings > Secrets and variables > Actions):
+#   FOLIO_PASSWORD, SFTP_PASSWORD (or SFTP_PRIVATE_KEY), NOTIFY_WEBHOOK_URL (optional)
+# GitHub-hosted runners need your FOLIO to accept traffic from the internet;
+# otherwise use `runs-on: self-hosted` with a runner inside your network.
+name: collectionHQ extract
+on:
+  schedule:
+    - cron: "15 7 * * 0"   # Sundays 07:15 UTC
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Force a full refresh"
+        type: boolean
+        default: false
+concurrency: chq-extract
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      HAS_SFTP_KEY: ${{ secrets.SFTP_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "folio-chq-extract @ git+https://github.com/ByYudkowskysTentacle/FOLIOHQ.git"
+      # Restore the cache so routine runs are incremental.
+      - uses: actions/cache/restore@v4
+        with:
+          path: data
+          key: chq-cache-${{ github.run_id }}
+          restore-keys: chq-cache-
+      - name: Write SFTP key
+        if: env.HAS_SFTP_KEY == 'true'
+        env:
+          SFTP_PRIVATE_KEY: ${{ secrets.SFTP_PRIVATE_KEY }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/chq_key"
+          printf '%s\n' "$SFTP_PRIVATE_KEY" > "$RUNNER_TEMP/chq_key"
+          echo "SFTP_PRIVATE_KEY_PATH=$RUNNER_TEMP/chq_key" >> "$GITHUB_ENV"
+      - name: Run extract
+        env:
+          FOLIO_PASSWORD: ${{ secrets.FOLIO_PASSWORD }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+          NOTIFY_WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+        run: folio-chq -c config.yaml run ${{ inputs.full && '--full' || '' }}
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: data
+          key: chq-cache-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: run-report
+          path: |
+            out/*/run-report.json
+            out/folio-chq.log
+          retention-days: 30

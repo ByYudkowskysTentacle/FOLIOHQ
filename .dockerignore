@@ -1,0 +1,6 @@
+.git
+data
+out
+config.yaml
+.env
+**/__pycache__

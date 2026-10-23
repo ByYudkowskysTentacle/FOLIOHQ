@@ -1,0 +1,112 @@
+# folio-chq-extract configuration
+# Copy to config.yaml and edit. Values like ${FOLIO_PASSWORD} are read from
+# environment variables, so secrets never need to be written in this file.
+# Run `folio-chq fields` to list every field you can use in the outputs below.
+
+folio:
+  # Okapi URL, or the Kong gateway URL on Eureka-based FOLIO (Sunflower and later).
+  base_url: https://folio-okapi.example.edu
+  tenant: example_tenant
+  username: chq_extract          # a dedicated, read-only service account
+  password: ${FOLIO_PASSWORD}
+  page_size: 500                 # records per API request
+  srs_batch_size: 200            # instance ids per MARC (SRS) lookup
+  timeout_seconds: 120
+  max_retries: 5
+  verify_tls: true
+  srs_include_shared: false      # true for member tenants in an ECS consortium
+
+extract:
+  # full  = fetch everything each run
+  # delta = fetch only records changed since the last run (deletions trigger a full resync)
+  # auto  = delta, plus a full refresh every full_refresh_days
+  mode: auto
+  full_refresh_days: 30
+  cache_path: ./data/cache.sqlite
+
+  include_suppressed_instances: false
+  include_suppressed_items: false
+  exclude_item_statuses: []      # e.g. ["Withdrawn", "On order", "Lost and paid"]
+  include_location_codes: []     # empty = all locations
+  exclude_location_codes: []     # e.g. ["ONLINE", "ERES"]
+  include_items_without_barcode: true
+  bibs_without_items: false      # also send bibs that have no eligible items
+
+  loan_window_months: 12         # for the loans_window field
+  # checkout = last date the item was checked out
+  # any      = latest of checkout, return or check-in scan
+  last_circ_date_from: checkout
+
+# Optional: values migrated from your previous ILS and stored in FOLIO as item
+# notes. Give the item note type *name* as shown in Settings > Inventory.
+legacy:
+  created_date_note_type: null   # e.g. "Legacy created date"
+  circ_count_note_type: null     # e.g. "Legacy circ count", added to loans_total
+  last_circ_date_note_type: null # e.g. "Legacy last checkout", used if FOLIO has no newer loan
+
+output:
+  directory: ./out
+  file_prefix: chq               # -> chq_bibs_YYYYMMDD.mrc, chq_items_YYYYMMDD.csv
+  date_stamp_format: "%Y%m%d"
+  # Safety check: block delivery if the item count falls below this share of the
+  # last delivery (protects cHQ from a half-empty extract). 0 disables it.
+  min_item_count_ratio: 0.9
+
+  marc:
+    split_every: 0               # 0 = one file; e.g. 100000 = new file every 100k records
+    # Each bib carries one field per item, so cHQ can link items by barcode as
+    # well as by MARC 001 (= instance HRID, the "Instance HRID" CSV column).
+    item_field_tag: "949"
+    item_subfields:
+      a: barcode
+      b: item_hrid
+      c: call_number
+      l: location_code
+      t: material_type
+      s: status
+    strip_existing_item_field: true   # remove any old 949s from the source record first
+    max_items_per_record: 500
+
+  items_csv:
+    delimiter: ","               # "\t" for tab, "|" for pipe
+    date_format: "%Y-%m-%d"
+    timezone: UTC                # e.g. America/New_York, for date boundaries
+    columns:
+      - {header: Instance HRID, field: instance_hrid}
+      - {header: Item HRID, field: item_hrid}
+      - {header: Barcode, field: barcode}
+      - {header: Material Type, field: material_type}
+      - {header: Last Circ Date, field: last_circ_date}
+      - {header: Last Checkin Date, field: last_checkin_date}
+      - {header: Status, field: status}
+      - {header: Status Date, field: status_date}
+      - {header: Due Date, field: due_date}
+      - {header: Created Date, field: created_date}
+      - {header: Location Code, field: location_code}
+      - {header: Location, field: location_name}
+      - {header: Library, field: library_name}
+      - {header: Call Number, field: call_number}
+      - {header: Call Number Type, field: call_number_type}
+      - {header: Total Checkouts, field: loans_total}
+      - {header: Checkouts Last 12 Months, field: loans_window}
+
+delivery:
+  method: sftp                   # sftp | local | none
+  keep_local_runs: 5             # older run folders in output.directory are deleted
+  sftp:
+    host: sftp.example.com       # from your collectionHQ contact
+    port: 22
+    username: your_chq_username
+    password: ${SFTP_PASSWORD}   # or use a key:
+    private_key_path: ${SFTP_PRIVATE_KEY_PATH}
+    private_key_passphrase: ${SFTP_KEY_PASSPHRASE}
+    remote_dir: .
+    # The server's host key must be trusted. Either have it in known_hosts
+    # (run `ssh-keyscan sftp.example.com >> ~/.ssh/known_hosts`) or pin it here
+    # in the form printed by `ssh-keygen -lf`, e.g. SHA256:AbCd...
+    known_hosts_path: ~/.ssh/known_hosts
+    host_key_fingerprint: ""
+
+notify:
+  webhook_url: ${NOTIFY_WEBHOOK_URL}   # Slack or Teams incoming webhook (optional)
+  on: failure                          # failure | always

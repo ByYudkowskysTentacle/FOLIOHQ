@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "folio-chq-extract"
+version = "0.1.0"
+description = "Extract MARC bibliographic and item/circulation data from FOLIO for collectionHQ Academic"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "folio-chq-extract contributors" }]
+keywords = ["FOLIO", "library", "collectionHQ", "MARC", "circulation"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Software Development :: Libraries",
+  "Intended Audience :: Education",
+]
+dependencies = [
+  "requests>=2.31",
+  "pymarc>=5.1",
+  "paramiko>=3.4",
+  "PyYAML>=6.0",
+  "python-dateutil>=2.8",
+  "tzdata>=2024.1; platform_system == 'Windows'",
+]
+
+[project.urls]
+Repository = "https://github.com/ByYudkowskysTentacle/FOLIOHQ"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+folio-chq = "folio_chq.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501", "E731"]
