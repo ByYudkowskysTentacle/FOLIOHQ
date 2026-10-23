@@ -3,7 +3,8 @@
 # Secrets to add (Settings > Secrets and variables > Actions):
 #   FOLIO_PASSWORD, SFTP_PASSWORD (or SFTP_PRIVATE_KEY), NOTIFY_WEBHOOK_URL (optional)
 # GitHub-hosted runners need your FOLIO to accept traffic from the internet;
-# otherwise use `runs-on: self-hosted` with a runner inside your network.
+# otherwise use `runs-on: self-hosted` with a runner inside your network
+# (runner v2.327.1 or later, which the Node 24 actions below require).
 name: collectionHQ extract
 on:
   schedule:
@@ -22,8 +23,8 @@ jobs:
     env:
       HAS_SFTP_KEY: ${{ secrets.SFTP_PRIVATE_KEY != '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: pip install "folio-chq-extract @ git+https://github.com/ByYudkowskysTentacle/FOLIOHQ.git"
