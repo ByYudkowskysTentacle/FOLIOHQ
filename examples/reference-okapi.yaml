@@ -1,0 +1,27 @@
+# Smoke test against FOLIO's public "Sunflower on Okapi" reference environment.
+# Sample & reference data, rebuilt weekly. Current URLs and demo logins are listed at
+# https://folio-org.atlassian.net/wiki/x/9oCeHg (linked from https://dev.folio.org/guides/automation/).
+#
+#   export FOLIO_PASSWORD=admin        # the published demo password, not a real secret
+#   folio-chq -c examples/reference-okapi.yaml check
+#   folio-chq -c examples/reference-okapi.yaml run --no-deliver
+#
+# Output lands in out/ref-okapi/; nothing is ever uploaded.
+
+folio:
+  base_url: https://folio-sunflower-okapi.dev.folio.org
+  tenant: diku
+  username: diku_admin
+  password: ${FOLIO_PASSWORD}
+
+extract:
+  mode: full                     # the environment is rebuilt, so a cache would go stale
+  cache_path: ./data/ref-okapi/cache.sqlite
+  bibs_without_items: true       # the sample data has many item-less bibs; include them to exercise MARC
+
+output:
+  directory: ./out/ref-okapi
+  min_item_count_ratio: 0        # rebuilds change the counts; the safety check means nothing here
+
+delivery:
+  method: none

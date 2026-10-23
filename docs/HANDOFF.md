@@ -4,7 +4,13 @@ _Last updated: 23 October 2026 (v0.1.0, first commit)._
 
 ## Where things stand
 
-v0.1.0 is feature-complete for the first use case. It has **not yet been run against a real FOLIO tenant or a real collectionHQ SFTP server.**
+v0.1.0 is feature-complete for the first use case. It has **not yet been run against the library's own FOLIO tenant or a real collectionHQ SFTP server.**
+
+**Reference-environment smoke test (23 Oct 2026): passed on both Okapi and Eureka.** `check` and `run --no-deliver` succeeded against FOLIO's public Sunflower-on-Okapi and Eureka Snapshot environments, using the configs in `examples/`. Results:
+- Okapi: 46 bibs (6 SRS, 40 generated) and 28 items.
+- Eureka: 122 bibs (81 SRS, 41 generated) and 25 items.
+
+On both, every file parsed with pymarc and leader/09 is `a`. Every CSV `Instance HRID` matches a MARC 001, and the 949 $a barcodes exactly match the CSV barcodes. Some items have no barcode, because the sample data has none. Created dates show the rebuild date, the same effect a migration has.
 
 Verified so far:
 - The FOLIO endpoint paths, response keys, field names, query parameters and permission names were checked against the folio-org source in Oct 2026 (see `CLAUDE.md`).
@@ -46,7 +52,7 @@ Verified so far:
 
 ## Suggested next steps (in order)
 
-1. **Try a FOLIO reference environment.** FOLIO's public snapshot/testing environments are listed at https://dev.folio.org/guides/automation/ (check current URLs and credentials there). Run `folio-chq check`, then `folio-chq run --no-deliver`. Inspect the MARC (e.g. `yaz-marcdump` or pymarc) and the CSV. This is the first real-API test, and it should include an Eureka environment.
+1. ~~**Try a FOLIO reference environment.**~~ Done on 23 Oct 2026 (see above). To repeat it, run `FOLIO_PASSWORD=admin folio-chq -c examples/reference-okapi.yaml run --no-deliver`, or the same with `reference-eureka.yaml`. Current URLs and demo logins: https://folio-org.atlassian.net/wiki/x/9oCeHg.
 2. **Run against the library's tenant** with `--no-deliver`. Spot-check about 20 items against the FOLIO UI: last checkout, status, location, call number, counts. Note how long the first full sync takes.
 3. **Send cHQ a sample** and settle the open questions above. Adjust `config.yaml`; code changes should rarely be needed.
 4. **Build and test the Docker image** (`docker build -t folio-chq-extract .`), and pick a scheduling option from `deploy/`.

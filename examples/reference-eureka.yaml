@@ -1,0 +1,27 @@
+# Smoke test against FOLIO's public "Eureka Snapshot" reference environment (Kong gateway).
+# Sample & reference data, rebuilt daily. Current URLs and demo logins are listed at
+# https://folio-org.atlassian.net/wiki/x/9oCeHg (linked from https://dev.folio.org/guides/automation/).
+#
+#   export FOLIO_PASSWORD=admin        # the published demo password, not a real secret
+#   folio-chq -c examples/reference-eureka.yaml check
+#   folio-chq -c examples/reference-eureka.yaml run --no-deliver
+#
+# Output lands in out/ref-eureka/; nothing is ever uploaded.
+
+folio:
+  base_url: https://folio-etesting-snapshot-kong.ci.folio.org
+  tenant: diku
+  username: diku_admin
+  password: ${FOLIO_PASSWORD}
+
+extract:
+  mode: full                     # the environment is rebuilt, so a cache would go stale
+  cache_path: ./data/ref-eureka/cache.sqlite
+  bibs_without_items: true       # the sample data has many item-less bibs; include them to exercise MARC
+
+output:
+  directory: ./out/ref-eureka
+  min_item_count_ratio: 0        # rebuilds change the counts; the safety check means nothing here
+
+delivery:
+  method: none
