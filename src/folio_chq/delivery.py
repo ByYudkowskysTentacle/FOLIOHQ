@@ -18,7 +18,26 @@ def sha256_fingerprint(key) -> str:
     return "SHA256:" + base64.b64encode(digest).decode().rstrip("=")
 
 
-def deliver_sftp(files: list[Path], sftp_cfg: dict) -> list[str]:
+KEYRING_SERVICE = "folio-chq-sftp"
+
+
+def stored_password(sftp_cfg: dict) -> str | None:
+    """The configured password, else one saved in the OS keyring (Windows Credential
+    Manager, macOS Keychain, Secret Service) under KEYRING_SERVICE and the username."""
+    if sftp_cfg.get("password"):
+        return sftp_cfg["password"]
+    try:
+        import keyring
+    except ImportError:  # optional extra: pip install 'folio-chq-extract[keyring]'
+        return None
+    try:
+        return keyring.get_password(KEYRING_SERVICE, sftp_cfg["username"])
+    except Exception as exc:  # noqa: BLE001 - any backend failure just means "nothing stored"
+        log.warning("Could not read the SFTP password from the system keyring: %s", exc)
+        return None
+
+
+def _connect(sftp_cfg: dict):
     import paramiko
 
     host = sftp_cfg["host"]
@@ -46,17 +65,54 @@ def deliver_sftp(files: list[Path], sftp_cfg: dict) -> list[str]:
         hostname=host,
         port=int(sftp_cfg.get("port") or 22),
         username=sftp_cfg["username"],
-        password=sftp_cfg.get("password") or None,
+        password=None if key_path else stored_password(sftp_cfg),
         key_filename=os.path.expanduser(key_path) if key_path else None,
         passphrase=sftp_cfg.get("private_key_passphrase") or None,
         look_for_keys=False,
         allow_agent=False,
         timeout=60,
     )
+    return client
+
+
+def _remote_dir(sftp_cfg: dict) -> str:
+    return (sftp_cfg.get("remote_dir") or ".").rstrip("/") or "."
+
+
+def check_sftp(sftp_cfg: dict) -> list[str] | None:
+    """Log in, verify the host key and list the remote folder. Writes nothing.
+
+    Returns None when login works but listing is refused, as on upload-only accounts."""
+    client = _connect(sftp_cfg)
+    try:
+        sftp = client.open_sftp()
+        try:
+            names: list[str] | None = sorted(sftp.listdir(_remote_dir(sftp_cfg)))
+        except PermissionError:
+            names = None
+        sftp.close()
+    finally:
+        client.close()
+    return names
+
+
+def deliver_sftp(files: list[Path], sftp_cfg: dict) -> list[str]:
+    host = sftp_cfg["host"]
+    client = _connect(sftp_cfg)
     uploaded = []
     try:
         sftp = client.open_sftp()
-        remote_dir = (sftp_cfg.get("remote_dir") or ".").rstrip("/") or "."
+        remote_dir = _remote_dir(sftp_cfg)
+        if (sftp_cfg.get("upload_mode") or "staged") == "direct":
+            # Upload-only accounts can't stat or rename. On object-store-backed
+            # servers (e.g. AWS Transfer Family) a file only appears once complete.
+            for f in files:
+                final = f"{remote_dir}/{f.name}"
+                log.info("Uploading %s (%s bytes) to %s:%s", f.name, f.stat().st_size, host, final)
+                sftp.put(str(f), final, confirm=False)
+                uploaded.append(final)
+            sftp.close()
+            return uploaded
         # Phase 1: upload everything as .part, so a dropped connection never
         # leaves new bibs next to an old items file (or vice versa).
         staged = []

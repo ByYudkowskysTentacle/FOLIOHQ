@@ -101,6 +101,7 @@ DEFAULTS: dict[str, Any] = {
             "private_key_path": "${SFTP_PRIVATE_KEY_PATH}",
             "private_key_passphrase": "${SFTP_KEY_PASSPHRASE}",
             "remote_dir": ".",
+            "upload_mode": "staged",
             "known_hosts_path": "~/.ssh/known_hosts",
             "host_key_fingerprint": "",
         },
@@ -158,6 +159,8 @@ def _validate(cfg: dict) -> None:
         raise ValueError("extract.last_circ_date_from must be 'checkout' or 'any'")
     if cfg["delivery"]["method"] not in {"sftp", "local", "none"}:
         raise ValueError("delivery.method must be sftp, local or none")
+    if cfg["delivery"]["sftp"]["upload_mode"] not in {"staged", "direct"}:
+        raise ValueError("delivery.sftp.upload_mode must be staged or direct")
     tag = str(cfg["output"]["marc"]["item_field_tag"])
     if not (len(tag) == 3 and tag.isdigit() and int(tag) >= 10):
         raise ValueError("output.marc.item_field_tag must be a 3-digit data field tag (010-999)")

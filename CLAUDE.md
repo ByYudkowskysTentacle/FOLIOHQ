@@ -22,7 +22,7 @@ pip install -e '.[dev]'
 pytest -q                 # all tests run against an in-process mock FOLIO; no network needed
 ruff check .              # rules: E, F, I, B, UP (see pyproject.toml)
 folio-chq fields          # list every output field
-folio-chq -c config.yaml check | run [--full --no-deliver --skip-sync --force] | sync | build | deliver
+folio-chq -c config.yaml check [--sftp] | run [--full --no-deliver --skip-sync --force] | sync | build | deliver
 ```
 
 Exit codes: 0 ok, 1 error, 2 blocked by the safety check (files built, not delivered).
@@ -81,7 +81,7 @@ These were verified against folio-org module descriptors and RAML/OpenAPI in Oct
 - **Delivery integrity:** `deliver` refuses run folders that aren't completed builds. SFTP uploads every file as `.part`, then renames them all. The item-count safety check (`min_item_count_ratio`) compares against the last delivery stored in cache meta.
 - **New output field:** add it to `ITEM_FIELDS` and `RowBuilder.build` in `fields.py`, add it to `DATE_FIELDS` if it's a date, then add a fixture and assertion in the mock tests. Config validation picks it up automatically.
 - **Performance reference:** the build step processes about 100k bibs and 200k items in ~30 s. Sync time depends on the FOLIO host; 500 records per page is the default.
-- **Secrets:** read only from env vars (`FOLIO_PASSWORD`, `SFTP_PASSWORD`, `SFTP_PRIVATE_KEY_PATH`, `SFTP_KEY_PASSPHRASE`, `NOTIFY_WEBHOOK_URL`; `FOLIO_URL`/`FOLIO_TENANT`/`FOLIO_USERNAME` override config). Never commit `config.yaml`, `.env`, `data/` or `out/` (all gitignored).
+- **Secrets:** read only from env vars, or for SFTP from the OS keyring (`delivery.stored_password`, service `folio-chq-sftp`, optional `[keyring]` extra) (`FOLIO_PASSWORD`, `SFTP_PASSWORD`, `SFTP_PRIVATE_KEY_PATH`, `SFTP_KEY_PASSPHRASE`, `NOTIFY_WEBHOOK_URL`; `FOLIO_URL`/`FOLIO_TENANT`/`FOLIO_USERNAME` override config). Never commit `config.yaml`, `.env`, `data/` or `out/` (all gitignored).
 
 ## Conventions
 

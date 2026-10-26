@@ -4,7 +4,7 @@ _Last updated: 26 October 2026 (v0.1.0 plus the cHQ Academic layout, unreleased)
 
 ## Where things stand
 
-v0.1.0 is feature-complete for the first use case. It has **not yet been run against the library's own FOLIO tenant or a real collectionHQ SFTP server.**
+v0.1.0 is feature-complete for the first use case. It has **not yet been run against the library's own FOLIO tenant, and nothing has been uploaded to collectionHQ yet.** The SFTP login is confirmed (see below).
 
 **Reference-environment smoke test (23 Oct 2026): passed on both Okapi and Eureka.** `check` and `run --no-deliver` succeeded against FOLIO's public Sunflower-on-Okapi and Eureka Snapshot environments, using the configs in `examples/`. Results:
 - Okapi: 46 bibs (6 SRS, 40 generated) and 28 items.
@@ -14,7 +14,7 @@ On both, every file parsed with pymarc and leader/09 is `a`. Every CSV `Instance
 
 Verified so far:
 - The FOLIO endpoint paths, response keys, field names, query parameters and permission names were checked against the folio-org source in Oct 2026 (see `CLAUDE.md`).
-- 20 automated tests pass against an in-process mock FOLIO. They cover the cHQ Academic PSV layout and the 999 ff $i link, a full run, delta sync, deletion detection, the safety check, retries and re-login, a bad password, custom columns and split files, stale-MARC handling, MARC long-field truncation, legacy date time zones, two-phase SFTP upload and login retry.
+- 26 automated tests pass against an in-process mock FOLIO. They cover the cHQ Academic PSV layout and the 999 ff $i link, the read-only SFTP check, direct (upload-only) SFTP mode, the keyring password, a full run, delta sync, deletion detection, the safety check, retries and re-login, a bad password, custom columns and split files, stale-MARC handling, MARC long-field truncation, legacy date time zones, two-phase SFTP upload and login retry.
 - An independent code review found eight defects, and all are fixed with regression tests:
   - fields over 9,999 bytes
   - delivering a partial run
@@ -53,7 +53,15 @@ cHQ sent the item fields its Academic product receives (the Library of Michigan 
    - **Location:** we send "Name [code]", as in the sample. Is that what they expect from every library?
    - **Item_level_call_number:** we send the effective call number (item, else holdings). Should it be the item record's own call number only, even if that leaves many items blank?
    - **File names:** the sample is `<barcode>_bib.marc` / `<barcode>_item_with_headers.psv`; we send `chq_bibs_YYYYMMDD.mrc` / `chq_items_YYYYMMDD.psv`. Any naming rules?
-3. **SFTP:** host, port, username, auth method (key or password), remote folder, the host key fingerprint, and whether files should be compressed.
+3. **SFTP.** The connection is settled, and the login was tested with `folio-chq check --sftp` on 26 Oct 2026:
+   - **Host:** `sftp.us.collectionhq.com`, port 22 (AWS Transfer Family). The other host cHQ listed, `ftp.collectionhq.com`, is plain FTP only.
+   - **Account:** a password service account, described as upload-only. Its password is in Windows Credential Manager (`folio-chq-sftp`) on the setup PC, and `config.yaml` uses `upload_mode: direct`.
+   - **Host key:** RSA `SHA256:qt5HxgZ6ktlwhFUUAwdjMZlL2KkAbKXhy2TsRxWoITI`. This was read from the server, not from cHQ, so ask them to confirm it.
+   - **Login folder contents:** `.bash_logout`, `.bashrc`, `.profile`, `.ssh`, `holds`, `transactions`. Listing works, so the account is not strictly upload-only.
+   - **Still to ask:**
+     - Which folder should the bib and item files go in (`remote_dir`)? Not `holds` or `transactions`, which look like other feeds.
+     - Should files be compressed?
+     - Does their pickup ignore partial uploads? This only matters if we switch to `staged` mode.
 4. **Cadence:** weekly or monthly, and is a full file each time OK? The tool always sends a complete snapshot built from the cache.
 5. ~~**"Last Circ Date."**~~ Answered by the sample: last checkout, the default.
 
@@ -71,7 +79,7 @@ cHQ sent the item fields its Academic product receives (the Library of Michigan 
 2. **Run against the library's tenant** with `--no-deliver`. Spot-check about 20 items against the FOLIO UI: last checkout, status, location, call number, counts. Note how long the first full sync takes.
 3. **Send cHQ a sample** built with `config.example.yaml`'s layout and settle the remaining open questions above. Adjust `config.yaml`; code changes should rarely be needed.
 4. **Build and test the Docker image** (`docker build -t folio-chq-extract .`), and pick a scheduling option from `deploy/`.
-5. **Go live:** set `delivery.method: sftp`, pin `host_key_fingerprint`, and set up the webhook.
+5. **Go live:** set `remote_dir` once cHQ confirms it, run as the Windows user that holds the Credential Manager entry (or use `SFTP_PASSWORD` on a server), and set up the webhook. The host and fingerprint are already set.
 6. **Open-source polish** when ready to publish:
    - ~~Make the repo public.~~ Done on 23 Oct 2026.
    - Add issue templates.

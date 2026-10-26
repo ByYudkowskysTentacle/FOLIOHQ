@@ -255,8 +255,9 @@ def test_chq_academic_psv_layout(tmp_path, folio, monkeypatch):
     assert b1["Item_level_call_number"] == "QA76.73.P98 L88 2020"
     assert b1["Location"] == "Main Stacks [MAIN-STACKS]" and b1["Loan_name"] == "Can circulate"
     assert b1["Created_date"] == "2023-08-01 09:00:00"
-    assert b1["Last_circ_date"] == _recent(30).replace("T", " ").rstrip("Z")
-    assert b1["Loan_return_date"] == _recent(10).replace("T", " ").rstrip("Z")
+    recent_loan = next(loan for loan in folio.data["loans"] if loan["id"] == U(42))
+    assert b1["Last_circ_date"] == recent_loan["loanDate"].replace("T", " ").rstrip("Z")
+    assert b1["Loan_return_date"] == recent_loan["returnDate"].replace("T", " ").rstrip("Z")
     assert b1["Number of loans"] == "2" and b1["Number of renewals"] == "2"
     assert b1["Enumeration"] == "None" and b1["Chronology"] == "None" and b1["Volume"] == "None"
     assert rows["None"]["Item identifier"] == "None"             # the item with no barcode

@@ -28,7 +28,7 @@ Each run produces two files and sends them to collectionHQ over SFTP:
 ```bash
 pip install git+https://github.com/ByYudkowskysTentacle/FOLIOHQ.git   # or: pip install -e . from a clone
 cp config.example.yaml config.yaml                                   # then edit it
-export FOLIO_PASSWORD='...'  SFTP_PASSWORD='...'
+export FOLIO_PASSWORD='...'  SFTP_PASSWORD='...'   # or keep the SFTP password in the OS keyring (below)
 
 folio-chq check                 # test login, permissions and record counts
 folio-chq run --no-deliver      # first run: build the files and inspect them in ./out/
@@ -42,6 +42,7 @@ The first run is always a full extract. On a large collection (1M+ items) it can
 | Command | What it does |
 |---|---|
 | `folio-chq check` | Logs in and checks that every endpoint the tool needs is readable |
+| `folio-chq check --sftp` | Logs in to the SFTP server, verifies its host key and lists the remote folder. Uploads nothing |
 | `folio-chq run` | Sync, build, safety check, deliver. **Use this for scheduled runs.** Options: `--full`, `--no-deliver`, `--skip-sync`, `--force` |
 | `folio-chq sync [--full]` | Update the local cache only |
 | `folio-chq build` | Write output files from the cache, without contacting FOLIO |
@@ -83,6 +84,20 @@ No patron data is read or exported: loans are used only for item ID, dates, rene
 - **Location** is the item's *effective* location, as FOLIO computes it: the item's temporary location if one is set, otherwise its permanent location, otherwise the holdings location. `location_name_code` gives "Name [code]", the form in cHQ's sample. `location_name`, `location_code` and `permanent_location_code` are also available.
 - **Bound-with items** are reported under the instance their holdings belong to.
 - **Empty values** are written as `output.items_csv.null_value`: `None` in the example config, as in cHQ's sample, or blank by default.
+
+## Keeping the SFTP password out of files
+
+On a desktop or server with an OS credential store, install the `keyring` extra and save the password once. The tool reads it whenever `SFTP_PASSWORD` is unset:
+
+```bash
+pip install 'folio-chq-extract[keyring]'
+keyring set folio-chq-sftp <your cHQ username>    # prompts for the password; nothing is echoed
+folio-chq check --sftp                            # logs in and verifies the host key; uploads nothing
+```
+
+On Windows this is Windows Credential Manager, encrypted for your user account. A scheduled task must run as the same user. In Docker or CI, use environment variables or secrets instead.
+
+If your cHQ account can only upload (it can't list, stat or rename files), set `delivery.sftp.upload_mode: direct`.
 
 ## Scheduling
 

@@ -31,6 +31,7 @@ Repository = "https://github.com/ByYudkowskysTentacle/FOLIOHQ"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
+keyring = ["keyring>=25"]   # read the SFTP password from the OS credential store
 
 [project.scripts]
 folio-chq = "folio_chq.cli:main"

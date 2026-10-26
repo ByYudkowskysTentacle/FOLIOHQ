@@ -15,7 +15,7 @@ from .cache import Cache
 from .client import FolioClient, FolioError
 from .config import load_config
 from .dates import now_utc
-from .delivery import deliver_sftp, notify, prune_runs
+from .delivery import KEYRING_SERVICE, check_sftp, deliver_sftp, notify, prune_runs, stored_password
 from .fields import ITEM_FIELDS
 from .sync import ENTITIES, REFDATA, Syncer
 
@@ -62,7 +62,37 @@ def _report(obj) -> dict:
 
 
 # ------------------------------------------------------------------ commands
-def cmd_check(cfg: dict, _args) -> int:
+def cmd_check_sftp(cfg: dict) -> int:
+    s = cfg["delivery"]["sftp"]
+    pin = s.get("host_key_fingerprint") or f"known_hosts ({s.get('known_hosts_path')})"
+    if (s.get("private_key_path") or "").strip():
+        secret = "private key"
+    elif s.get("password"):
+        secret = "password from config/environment"
+    elif stored_password(s):
+        secret = f"password from the system keyring ({KEYRING_SERVICE})"
+    else:
+        secret = "NO password or key found"
+    print(f"Connecting to {s['host']}:{s.get('port') or 22} as {s['username'] or '(no username)'}")
+    print(f"  host key {pin}; using {secret}")
+    try:
+        names = check_sftp(s)
+    except Exception as exc:  # noqa: BLE001 - paramiko raises many types; report them all the same way
+        print(f"  FAILED   {type(exc).__name__}: {str(exc)[:200]}")
+        return 1
+    folder = s.get("remote_dir") or "."
+    if names is None:
+        print(f"  OK       logged in; listing {folder} is not permitted (normal for upload-only accounts). Nothing was uploaded.")
+        return 0
+    print(f"  OK       logged in; {folder} has {len(names)} entries. Nothing was uploaded.")
+    for name in names[:20]:
+        print(f"           {name}")
+    return 0
+
+
+def cmd_check(cfg: dict, args) -> int:
+    if getattr(args, "sftp", False):
+        return cmd_check_sftp(cfg)
     client = _client(cfg)
     client.login()
     print(f"Logged in to {client.base_url} (tenant {client.tenant}) as {client.username}")
@@ -240,7 +270,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-v", "--verbose", action="store_true")
     p.add_argument("--version", action="version", version=__version__)
     sub = p.add_subparsers(dest="command", required=True)
-    sub.add_parser("check", help="test login, permissions and record counts")
+    c = sub.add_parser("check", help="test login, permissions and record counts")
+    c.add_argument("--sftp", action="store_true", help="test the SFTP login and list the remote folder instead (uploads nothing)")
     sub.add_parser("fields", help="list fields available for CSV columns and MARC item subfields")
     s = sub.add_parser("sync", help="update the local cache from FOLIO")
     s.add_argument("--full", action="store_true", help="ignore the cache and fetch everything")

@@ -111,10 +111,19 @@ delivery:
     host: sftp.example.com       # from your collectionHQ contact
     port: 22
     username: your_chq_username
+    # If SFTP_PASSWORD is unset, the password is read from the OS credential
+    # store (Windows Credential Manager, macOS Keychain) under the service
+    # "folio-chq-sftp" and this username. Needs: pip install 'folio-chq-extract[keyring]'
     password: ${SFTP_PASSWORD}   # or use a key:
     private_key_path: ${SFTP_PRIVATE_KEY_PATH}
     private_key_passphrase: ${SFTP_KEY_PASSPHRASE}
     remote_dir: .
+    # staged = upload as .part, then rename all files into place (needs stat and
+    #          rename permission).
+    # direct = upload straight to the final names. Use this for upload-only
+    #          accounts; on object-store-backed servers such as AWS Transfer
+    #          Family, a file only appears once it is complete.
+    upload_mode: staged
     # The server's host key must be trusted. Either have it in known_hosts
     # (run `ssh-keyscan sftp.example.com >> ~/.ssh/known_hosts`) or pin it here
     # in the form printed by `ssh-keygen -lf`, e.g. SHA256:AbCd...
