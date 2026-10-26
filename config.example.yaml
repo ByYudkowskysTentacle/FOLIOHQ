@@ -8,6 +8,8 @@ folio:
   base_url: https://folio-okapi.example.edu
   tenant: example_tenant
   username: chq_extract          # a dedicated, read-only service account
+  # If FOLIO_PASSWORD is unset, the password is read from the OS credential
+  # store under the service "folio-chq-folio" and the username above.
   password: ${FOLIO_PASSWORD}
   page_size: 500                 # records per API request
   srs_batch_size: 200            # instance ids per MARC (SRS) lookup

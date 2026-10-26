@@ -44,7 +44,10 @@ class FolioClient:
         if not base_url:
             raise FolioError("folio.base_url is not set")
         if not password:
-            raise FolioError("FOLIO password is empty (set FOLIO_PASSWORD or folio.password)")
+            raise FolioError(
+                "FOLIO password is empty (set FOLIO_PASSWORD or folio.password, or store it in the OS keyring "
+                "under service 'folio-chq-folio' and the FOLIO username)"
+            )
         self.base_url = base_url.rstrip("/")
         self.tenant = tenant
         self.username = username

@@ -33,6 +33,7 @@ Exit codes: 0 ok, 1 error, 2 blocked by the safety check (files built, not deliv
 src/folio_chq/
   cli.py       argparse entry point; `run` = sync -> build -> safety check -> deliver -> prune -> notify
   config.py    YAML + ${ENV} substitution + DEFAULTS deep-merge + validation
+  credentials.py  password from config/env, else the OS keyring (optional `keyring` package)
   client.py    FolioClient: login-with-expiry (Okapi and Eureka), retries/backoff, 401 re-login,
                id-keyset paging (`id>"last" sortBy id`), count(), get_all() for reference data
   sync.py      Syncer: reference data (always full), then instances/holdings/items/loans, full or delta;
@@ -81,7 +82,7 @@ These were verified against folio-org module descriptors and RAML/OpenAPI in Oct
 - **Delivery integrity:** `deliver` refuses run folders that aren't completed builds. SFTP uploads every file as `.part`, then renames them all. The item-count safety check (`min_item_count_ratio`) compares against the last delivery stored in cache meta.
 - **New output field:** add it to `ITEM_FIELDS` and `RowBuilder.build` in `fields.py`, add it to `DATE_FIELDS` if it's a date, then add a fixture and assertion in the mock tests. Config validation picks it up automatically.
 - **Performance reference:** the build step processes about 100k bibs and 200k items in ~30 s. Sync time depends on the FOLIO host; 500 records per page is the default.
-- **Secrets:** read only from env vars, or for SFTP from the OS keyring (`delivery.stored_password`, service `folio-chq-sftp`, optional `[keyring]` extra) (`FOLIO_PASSWORD`, `SFTP_PASSWORD`, `SFTP_PRIVATE_KEY_PATH`, `SFTP_KEY_PASSPHRASE`, `NOTIFY_WEBHOOK_URL`; `FOLIO_URL`/`FOLIO_TENANT`/`FOLIO_USERNAME` override config). Never commit `config.yaml`, `.env`, `data/` or `out/` (all gitignored).
+- **Secrets:** read only from env vars, or from the OS keyring via `credentials.password()` (services `folio-chq-folio` and `folio-chq-sftp`, keyed by username; optional `[keyring]` extra). Tests block the real keyring with an autouse fixture in `conftest.py`, so fake one with `monkeypatch.setitem(sys.modules, 'keyring', ...)`. Env vars: (`FOLIO_PASSWORD`, `SFTP_PASSWORD`, `SFTP_PRIVATE_KEY_PATH`, `SFTP_KEY_PASSPHRASE`, `NOTIFY_WEBHOOK_URL`; `FOLIO_URL`/`FOLIO_TENANT`/`FOLIO_USERNAME` override config). Never commit `config.yaml`, `.env`, `data/` or `out/` (all gitignored).
 
 ## Conventions
 

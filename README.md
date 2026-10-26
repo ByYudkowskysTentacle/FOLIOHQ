@@ -28,7 +28,7 @@ Each run produces two files and sends them to collectionHQ over SFTP:
 ```bash
 pip install git+https://github.com/ByYudkowskysTentacle/FOLIOHQ.git   # or: pip install -e . from a clone
 cp config.example.yaml config.yaml                                   # then edit it
-export FOLIO_PASSWORD='...'  SFTP_PASSWORD='...'   # or keep the SFTP password in the OS keyring (below)
+export FOLIO_PASSWORD='...'  SFTP_PASSWORD='...'   # or keep both passwords in the OS keyring (below)
 
 folio-chq check                 # test login, permissions and record counts
 folio-chq run --no-deliver      # first run: build the files and inspect them in ./out/
@@ -85,14 +85,21 @@ No patron data is read or exported: loans are used only for item ID, dates, rene
 - **Bound-with items** are reported under the instance their holdings belong to.
 - **Empty values** are written as `output.items_csv.null_value`: `None` in the example config, as in cHQ's sample, or blank by default.
 
-## Keeping the SFTP password out of files
+## Keeping passwords out of files
 
-On a desktop or server with an OS credential store, install the `keyring` extra and save the password once. The tool reads it whenever `SFTP_PASSWORD` is unset:
+On a desktop or server with an OS credential store, install the `keyring` extra and save each password once. The tool reads the stored password whenever its environment variable is unset:
+
+| Password | Environment variable | Keyring service | Keyring username |
+|---|---|---|---|
+| FOLIO service account | `FOLIO_PASSWORD` | `folio-chq-folio` | `folio.username` |
+| collectionHQ SFTP | `SFTP_PASSWORD` | `folio-chq-sftp` | `delivery.sftp.username` |
 
 ```bash
 pip install 'folio-chq-extract[keyring]'
-keyring set folio-chq-sftp <your cHQ username>    # prompts for the password; nothing is echoed
-folio-chq check --sftp                            # logs in and verifies the host key; uploads nothing
+keyring set folio-chq-folio <FOLIO service account username>   # prompts for the password; nothing is echoed
+keyring set folio-chq-sftp <your cHQ username>
+folio-chq check            # says where the FOLIO password came from, then tests the login and permissions
+folio-chq check --sftp     # logs in and verifies the host key; uploads nothing
 ```
 
 On Windows this is Windows Credential Manager, encrypted for your user account. A scheduled task must run as the same user. In Docker or CI, use environment variables or secrets instead.

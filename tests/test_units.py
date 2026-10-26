@@ -193,3 +193,33 @@ def test_config_rejects_bad_upload_mode(tmp_path):
     p.write_text("delivery:" + chr(10) + "  sftp:" + chr(10) + "    upload_mode: fast" + chr(10))
     with pytest.raises(ValueError, match="upload_mode"):
         load_config(p)
+
+
+def test_credentials_prefer_config_then_keyring(monkeypatch):
+    import sys
+    import types
+
+    from folio_chq import credentials
+
+    monkeypatch.setitem(sys.modules, "keyring", types.SimpleNamespace(get_password=lambda s, u: f"{s}:{u}"))
+    assert credentials.password("env", "svc", "u") == "env"
+    assert credentials.password("", "svc", "u") == "svc:u"
+    assert credentials.password("", "svc", "") is None
+    assert credentials.source("env", "svc", "u") == "config/environment"
+    assert credentials.source("", "svc", "u") == "system keyring (svc)"
+
+    def broken(_s, _u):
+        raise RuntimeError("no backend")
+
+    monkeypatch.setitem(sys.modules, "keyring", types.SimpleNamespace(get_password=broken))
+    assert credentials.password("", "svc", "u") is None
+    assert credentials.source("", "svc", "u") == "NOT FOUND"
+
+
+def test_credentials_without_keyring_installed(monkeypatch):
+    import sys
+
+    from folio_chq import credentials
+
+    monkeypatch.setitem(sys.modules, "keyring", None)            # makes `import keyring` raise ImportError
+    assert credentials.password("", "svc", "u") is None

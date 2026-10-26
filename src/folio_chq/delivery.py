@@ -10,6 +10,8 @@ from pathlib import Path
 
 import requests
 
+from . import credentials
+
 log = logging.getLogger(__name__)
 
 
@@ -18,23 +20,12 @@ def sha256_fingerprint(key) -> str:
     return "SHA256:" + base64.b64encode(digest).decode().rstrip("=")
 
 
-KEYRING_SERVICE = "folio-chq-sftp"
+KEYRING_SERVICE = credentials.SFTP_SERVICE
 
 
 def stored_password(sftp_cfg: dict) -> str | None:
-    """The configured password, else one saved in the OS keyring (Windows Credential
-    Manager, macOS Keychain, Secret Service) under KEYRING_SERVICE and the username."""
-    if sftp_cfg.get("password"):
-        return sftp_cfg["password"]
-    try:
-        import keyring
-    except ImportError:  # optional extra: pip install 'folio-chq-extract[keyring]'
-        return None
-    try:
-        return keyring.get_password(KEYRING_SERVICE, sftp_cfg["username"])
-    except Exception as exc:  # noqa: BLE001 - any backend failure just means "nothing stored"
-        log.warning("Could not read the SFTP password from the system keyring: %s", exc)
-        return None
+    """The configured SFTP password, else the one in the OS keyring under KEYRING_SERVICE."""
+    return credentials.password(sftp_cfg.get("password"), KEYRING_SERVICE, sftp_cfg.get("username"))
 
 
 def _connect(sftp_cfg: dict):

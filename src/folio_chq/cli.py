@@ -9,13 +9,13 @@ import sys
 import traceback
 from pathlib import Path
 
-from . import __version__
+from . import __version__, credentials
 from .build import build
 from .cache import Cache
 from .client import FolioClient, FolioError
 from .config import load_config
 from .dates import now_utc
-from .delivery import KEYRING_SERVICE, check_sftp, deliver_sftp, notify, prune_runs, stored_password
+from .delivery import KEYRING_SERVICE, check_sftp, deliver_sftp, notify, prune_runs
 from .fields import ITEM_FIELDS
 from .sync import ENTITIES, REFDATA, Syncer
 
@@ -45,7 +45,8 @@ def _setup_logging(out_dir: Path, verbose: bool) -> None:
 def _client(cfg: dict) -> FolioClient:
     f = cfg["folio"]
     return FolioClient(
-        f["base_url"], f["tenant"], f["username"], f["password"],
+        f["base_url"], f["tenant"], f["username"],
+        credentials.password(f["password"], credentials.FOLIO_SERVICE, f["username"]) or "",
         timeout=float(f["timeout_seconds"]), max_retries=int(f["max_retries"]),
         verify_tls=bool(f["verify_tls"]), user_agent=f"folio-chq-extract/{__version__}",
     )
@@ -66,15 +67,11 @@ def cmd_check_sftp(cfg: dict) -> int:
     s = cfg["delivery"]["sftp"]
     pin = s.get("host_key_fingerprint") or f"known_hosts ({s.get('known_hosts_path')})"
     if (s.get("private_key_path") or "").strip():
-        secret = "private key"
-    elif s.get("password"):
-        secret = "password from config/environment"
-    elif stored_password(s):
-        secret = f"password from the system keyring ({KEYRING_SERVICE})"
+        secret = "private key file"
     else:
-        secret = "NO password or key found"
+        secret = "password: " + credentials.source(s.get("password"), KEYRING_SERVICE, s.get("username"))
     print(f"Connecting to {s['host']}:{s.get('port') or 22} as {s['username'] or '(no username)'}")
-    print(f"  host key {pin}; using {secret}")
+    print(f"  host key {pin}; {secret}")
     try:
         names = check_sftp(s)
     except Exception as exc:  # noqa: BLE001 - paramiko raises many types; report them all the same way
@@ -93,6 +90,8 @@ def cmd_check_sftp(cfg: dict) -> int:
 def cmd_check(cfg: dict, args) -> int:
     if getattr(args, "sftp", False):
         return cmd_check_sftp(cfg)
+    f = cfg["folio"]
+    print(f"FOLIO password: {credentials.source(f['password'], credentials.FOLIO_SERVICE, f['username'])}")
     client = _client(cfg)
     client.login()
     print(f"Logged in to {client.base_url} (tenant {client.tenant}) as {client.username}")

@@ -262,3 +262,25 @@ def test_chq_academic_psv_layout(tmp_path, folio, monkeypatch):
     assert b1["Enumeration"] == "None" and b1["Chronology"] == "None" and b1["Volume"] == "None"
     assert rows["None"]["Item identifier"] == "None"             # the item with no barcode
     assert rows["B0002"]["Loan_return_date"] == "None" and rows["B0002"]["Volume"] == "v.2"
+
+
+def _fake_keyring(monkeypatch, store: dict):
+    import sys
+    import types
+
+    monkeypatch.setitem(sys.modules, "keyring", types.SimpleNamespace(get_password=lambda s, u: store.get((s, u))))
+
+
+def test_folio_password_from_keyring(tmp_path, folio, monkeypatch, capsys):
+    _fake_keyring(monkeypatch, {("folio-chq-folio", "chq"): "secret"})
+    cfg = write_config(tmp_path, folio.url, folio={"password": ""})
+    assert main(["-c", str(cfg), "check"]) == 0
+    assert "FOLIO password: system keyring (folio-chq-folio)" in capsys.readouterr().out
+    assert main(["-c", str(cfg), "run"]) == 0
+
+
+def test_folio_password_missing_everywhere(tmp_path, folio, monkeypatch, caplog):
+    _fake_keyring(monkeypatch, {("folio-chq-sftp", "chq"): "not-this-one"})
+    cfg = write_config(tmp_path, folio.url, folio={"password": ""})
+    assert main(["-c", str(cfg), "check"]) == 1
+    assert "folio-chq-folio" in caplog.text
