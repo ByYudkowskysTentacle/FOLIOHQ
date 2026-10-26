@@ -84,6 +84,7 @@ def test_full_run_outputs(tmp_path, folio):
     assert r2["050"]["a"] == "Z678.9 .D64 2019"
     assert r2["999"]["i"] == U(2)
     assert r2.leader[9] == "a"
+    assert r1["999"]["i"] == U(1)                                # SRS fixture carries a wrong $i; corrected
 
     # Items: linked to bibs by instance HRID; every barcode also appears in the bib's 949.
     bcs = {row["Barcode"]: row for row in rows}
@@ -111,6 +112,7 @@ def test_full_run_outputs(tmp_path, folio):
     assert b3["Location"] == "Science Library Stacks"
 
     assert report["build"]["items_without_barcode"] == 1
+    assert report["build"]["marc_999_corrected"] == 1
     assert report["build"]["bibs_generated"] == 1
     assert report["build"]["items_skipped"]["location excluded"] == 1
     assert report["build"]["items_skipped"]["instance suppressed"] == 1
@@ -204,3 +206,58 @@ def test_instance_switching_to_folio_source_drops_stale_marc(tmp_path, folio):
     records, _ = read_outputs(latest_run(tmp_path))
     r1 = next(r for r in records if r["001"].data == "in00000000001")
     assert r1["245"]["a"] == "Now FOLIO-sourced"
+
+
+# Item fields and headers collectionHQ Academic receives in its PSV extract (from cHQ's implementation team).
+CHQ_ACADEMIC_COLUMNS = [
+    ("Bib record ID", "instance_id"), ("Item record ID", "item_id"), ("Item record HRID", "item_hrid"),
+    ("Item identifier", "item_identifier"), ("Barcode", "barcode"), ("Enumeration", "enumeration"),
+    ("Chronology", "chronology"), ("Item_level_call_number", "call_number"), ("Volume", "volume"),
+    ("Created_date", "created_date"), ("Status", "status"), ("Location", "location_name_code"),
+    ("Material_type", "material_type"), ("Number_of_pieces", "number_of_pieces"), ("Copy_number", "copy_number"),
+    ("Loan_name", "loan_type"), ("Last_circ_date", "last_circ_date"), ("Loan_return_date", "last_return_date"),
+    ("Number of loans", "loans_total"), ("Number of renewals", "renewals_total"),
+]
+
+
+def test_chq_academic_psv_layout(tmp_path, folio, monkeypatch):
+    cfg = write_config(
+        tmp_path, folio.url,
+        output={"directory": str(tmp_path / "out"), "file_prefix": "t",
+                "marc": {"embed_items": False},
+                "items_csv": {"delimiter": "|", "file_extension": "psv", "null_value": "None",
+                              "date_format": "%Y-%m-%d %H:%M:%S",
+                              "columns": [{"header": h, "field": f} for h, f in CHQ_ACADEMIC_COLUMNS]}},
+        delivery={"method": "sftp"},
+    )
+    sent = []
+    monkeypatch.setattr("folio_chq.cli.deliver_sftp", lambda files, _cfg: sent.extend(p.name for p in files) or sent)
+    assert main(["-c", str(cfg), "run"]) == 0
+    run = latest_run(tmp_path)
+    psv = next(run.glob("*.psv"))
+    assert not list(run.glob("*.csv"))
+    assert sorted(sent) == sorted([next(run.glob("*.mrc")).name, psv.name])
+
+    lines = psv.read_text(encoding="utf-8").splitlines()
+    assert lines[0] == "|".join(h for h, _ in CHQ_ACADEMIC_COLUMNS)
+    with open(psv, newline="", encoding="utf-8") as fh:
+        rows = {r["Barcode"]: r for r in csv.DictReader(fh, delimiter="|")}
+    with open(next(run.glob("*.mrc")), "rb") as fh:
+        records = list(MARCReader(fh, to_unicode=True, force_utf8=True))
+
+    # Bibs link to items through 999 ff $i = instance UUID = "Bib record ID"; no item fields are embedded.
+    assert {r["999"]["i"] for r in records} >= {row["Bib record ID"] for row in rows.values()}
+    assert not any(r.get_fields("949") for r in records)
+
+    b1 = rows["B0001"]
+    assert b1["Bib record ID"] == U(1) and b1["Item record ID"] == U(21) and b1["Item record HRID"] == "it21"
+    assert b1["Item identifier"] == "LEGACY-21" and b1["Number_of_pieces"] == "2" and b1["Copy_number"] == "1"
+    assert b1["Item_level_call_number"] == "QA76.73.P98 L88 2020"
+    assert b1["Location"] == "Main Stacks [MAIN-STACKS]" and b1["Loan_name"] == "Can circulate"
+    assert b1["Created_date"] == "2023-08-01 09:00:00"
+    assert b1["Last_circ_date"] == _recent(30).replace("T", " ").rstrip("Z")
+    assert b1["Loan_return_date"] == _recent(10).replace("T", " ").rstrip("Z")
+    assert b1["Number of loans"] == "2" and b1["Number of renewals"] == "2"
+    assert b1["Enumeration"] == "None" and b1["Chronology"] == "None" and b1["Volume"] == "None"
+    assert rows["None"]["Item identifier"] == "None"             # the item with no barcode
+    assert rows["B0002"]["Loan_return_date"] == "None" and rows["B0002"]["Volume"] == "v.2"

@@ -129,6 +129,19 @@ def from_instance(inst: dict, ref) -> Record:
     return rec
 
 
+def _set_instance_link(rec: Record, instance_id: str) -> bool:
+    """Make 999 ff $i hold the instance UUID (the link cHQ uses). Returns True if it already did."""
+    links = [f for f in rec.get_fields("999") if f.indicator1 == "f" and f.indicator2 == "f"]
+    if links and [s.value for s in links[0].subfields if s.code == "i"] == [instance_id]:
+        return True
+    if not links:
+        rec.add_ordered_field(Field(tag="999", indicators=Indicators("f", "f"), subfields=[Subfield("i", instance_id)]))
+        return False
+    others = [s for s in links[0].subfields if s.code != "i"]
+    links[0].subfields = [Subfield("i", instance_id), *others]
+    return False
+
+
 def _add(rec: Record, field: Field | None) -> None:
     if field is not None:
         rec.add_field(field)
@@ -137,6 +150,7 @@ def _add(rec: Record, field: Field | None) -> None:
 class MarcBuilder:
     def __init__(self, cfg: dict, date_fmt) -> None:
         m = cfg["output"]["marc"]
+        self.embed = bool(m["embed_items"])
         self.tag = str(m["item_field_tag"])
         self.subfields: dict[str, str] = {str(k): v for k, v in m["item_subfields"].items()}
         self.strip = bool(m["strip_existing_item_field"])
@@ -145,10 +159,11 @@ class MarcBuilder:
         self.truncated = 0
         self.oversize = 0
         self.fixed_001 = 0
+        self.fixed_999 = 0
         self.long_fields = 0
 
     def finalize(self, rec: Record, instance: dict, rows: list[dict]) -> bytes | None:
-        """Ensure 001 = instance HRID, embed item fields, return ISO 2709 bytes."""
+        """Ensure 001 = instance HRID and 999 ff $i = instance UUID, embed item fields, return ISO 2709 bytes."""
         hrid = instance.get("hrid")
         if hrid:
             cur = rec.get_fields("001")
@@ -158,12 +173,14 @@ class MarcBuilder:
                 rec.add_ordered_field(Field(tag="001", data=hrid))
         if self.strip:
             rec.remove_fields(self.tag)
+        if instance.get("id") and not _set_instance_link(rec, instance["id"]):
+            self.fixed_999 += 1
         rec.leader = rec.leader[:9] + "a" + rec.leader[10:]  # UTF-8
         rec.force_utf8 = True
         self.long_fields += shorten_long_fields(rec)
 
-        items = rows[: self.max_items]
-        truncated = len(rows) > self.max_items
+        items = rows[: self.max_items] if self.embed else []
+        truncated = self.embed and len(rows) > self.max_items
         fields = [self._item_field(r) for r in items]
         self.long_fields += sum(shorten_long_fields_one(f) for f in fields)
         for f in fields:

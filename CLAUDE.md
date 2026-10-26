@@ -6,12 +6,12 @@ Guidance for Claude Code (and humans) working in this repository. Read `docs/HAN
 
 `folio-chq-extract` (repo: FOLIOHQ) is a Python CLI that pulls bibliographic, item and loan data from the **FOLIO** library services platform through its HTTP APIs, and writes two files for **collectionHQ (cHQ) Academic**:
 
-- `chq_bibs_YYYYMMDD.mrc`: MARC 21 bibs, UTF-8, ISO 2709. Each bib has one 949 field per item.
-- `chq_items_YYYYMMDD.csv`: one row per item.
+- `chq_bibs_YYYYMMDD.mrc`: MARC 21 bibs, UTF-8, ISO 2709. Optionally (`output.marc.embed_items`), one 949 field per item.
+- `chq_items_YYYYMMDD.psv`: one row per item. The delimiter, extension, null text and columns are configurable; `config.example.yaml` matches the PSV layout cHQ Academic receives.
 
 It then uploads them over SFTP. It runs on a schedule, and routine runs are incremental.
 
-**Bib-to-item link (the cHQ "connector"):** MARC 001 = the FOLIO instance HRID = the `Instance HRID` CSV column. The item barcode appears in both the CSV and the bib's 949 $a.
+**Bib-to-item link (the cHQ "connector"):** MARC 999 ff $i = the FOLIO instance UUID = the `Bib record ID` column (`instance_id`). cHQ Academic links on this. `MarcBuilder.finalize` enforces it, as it does 001 = instance HRID. With embedding on, the item barcode is also in the bib's 949 $a.
 
 The project is intended to be open source (MIT) and usable by any FOLIO library, so keep library-specific behaviour behind config.
 

@@ -68,6 +68,7 @@ DEFAULTS: dict[str, Any] = {
         "min_item_count_ratio": 0.9,
         "marc": {
             "split_every": 0,
+            "embed_items": True,
             "item_field_tag": "949",
             "item_subfields": {
                 "a": "barcode",
@@ -82,6 +83,8 @@ DEFAULTS: dict[str, Any] = {
         },
         "items_csv": {
             "delimiter": ",",
+            "file_extension": "csv",
+            "null_value": "",
             "date_format": "%Y-%m-%d",
             "timezone": "UTC",
             "columns": DEFAULT_COLUMNS,
@@ -158,6 +161,9 @@ def _validate(cfg: dict) -> None:
     tag = str(cfg["output"]["marc"]["item_field_tag"])
     if not (len(tag) == 3 and tag.isdigit() and int(tag) >= 10):
         raise ValueError("output.marc.item_field_tag must be a 3-digit data field tag (010-999)")
+    ext = str(cfg["output"]["items_csv"]["file_extension"])
+    if not ext.isalnum() or ext.lower() == "mrc":
+        raise ValueError(f"output.items_csv.file_extension must be letters/digits only and not 'mrc' (got {ext!r})")
     from .fields import ITEM_FIELDS
 
     for col in cfg["output"]["items_csv"]["columns"]:

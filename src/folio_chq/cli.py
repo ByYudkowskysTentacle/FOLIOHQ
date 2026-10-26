@@ -126,7 +126,8 @@ def safety_check(cfg: dict, items_written: int) -> None:
 
 
 def do_deliver(cfg: dict, run_dir: Path, items_written: int | None) -> list[str]:
-    files = sorted(p for p in run_dir.iterdir() if p.suffix in {".mrc", ".csv"})
+    item_ext = "." + str(cfg["output"]["items_csv"]["file_extension"])
+    files = sorted(p for p in run_dir.iterdir() if p.suffix in {".mrc", item_ext})
     method = cfg["delivery"]["method"]
     sent: list[str] = []
     if method == "sftp":

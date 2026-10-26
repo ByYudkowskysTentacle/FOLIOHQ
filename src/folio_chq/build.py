@@ -30,6 +30,7 @@ class BuildReport:
     items_without_barcode: int = 0
     duplicate_barcodes: int = 0
     marc_001_corrected: int = 0
+    marc_999_corrected: int = 0
     marc_items_truncated: int = 0
     marc_oversize_skipped: int = 0
     marc_long_fields_truncated: int = 0
@@ -73,11 +74,16 @@ def build(cache: Cache, cfg: dict, run_dir: Path) -> BuildReport:
     tzname = csv_cfg.get("timezone") or "UTC"
     tz = ZoneInfo(tzname)
     date_format = csv_cfg["date_format"]
+    null_value = csv_cfg["null_value"]
 
     def fmt_value(name: str, value):
         if name in DATE_FIELDS:
             return fmt(value, date_format, tz)
         return "" if value is None else value
+
+    def csv_value(name: str, value):
+        value = fmt_value(name, value)
+        return null_value if value in (None, "") else value
 
     ref = Ref.from_cache(cache)
     rows_builder = RowBuilder(ref, cfg)
@@ -108,7 +114,7 @@ def build(cache: Cache, cfg: dict, run_dir: Path) -> BuildReport:
     keep_bibs_without_items = bool(ext["bibs_without_items"])
 
     columns = csv_cfg["columns"]
-    csv_path = run_dir / f"{prefix}_items_{stamp}.csv"
+    csv_path = run_dir / f"{prefix}_items_{stamp}.{csv_cfg['file_extension']}"
     marc = _MarcSink(run_dir, f"{prefix}_bibs_{stamp}", int(out["marc"]["split_every"] or 0))
     seen_barcodes: set[str] = set()
 
@@ -146,7 +152,7 @@ def build(cache: Cache, cfg: dict, run_dir: Path) -> BuildReport:
             marc.write(data)
             rep.bibs_written += 1
         for r in rows:
-            writer.writerow([fmt_value(c["field"], r.get(c["field"])) for c in columns])
+            writer.writerow([csv_value(c["field"], r.get(c["field"])) for c in columns])
             rep.items_written += 1
 
     query = """
@@ -201,6 +207,7 @@ def build(cache: Cache, cfg: dict, run_dir: Path) -> BuildReport:
     marc.close()
 
     rep.marc_001_corrected = marc_builder.fixed_001
+    rep.marc_999_corrected = marc_builder.fixed_999
     rep.marc_items_truncated = marc_builder.truncated
     rep.marc_oversize_skipped = marc_builder.oversize
     rep.marc_long_fields_truncated = marc_builder.long_fields

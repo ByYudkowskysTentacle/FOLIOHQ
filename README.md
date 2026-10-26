@@ -6,10 +6,10 @@ Each run produces two files and sends them to collectionHQ over SFTP:
 
 | File | Contents |
 |---|---|
-| `chq_bibs_YYYYMMDD.mrc` | Full MARC 21 bibliographic records (UTF-8, ISO 2709) from FOLIO Source Record Storage. Each record also carries one **949** field per item (barcode, item HRID, call number, location, material type, status). |
-| `chq_items_YYYYMMDD.csv` | One row per item: barcode, material type, last circ date, status, created date, location, LC call number, checkout counts, and more (configurable). |
+| `chq_bibs_YYYYMMDD.mrc` | Full MARC 21 bibliographic records (UTF-8, ISO 2709) from FOLIO Source Record Storage. Optionally, each record also carries one **949** field per item (barcode, item HRID, call number, location, material type, status). |
+| `chq_items_YYYYMMDD.psv` | One row per item, pipe-delimited: bib record ID, barcode, material type, last circ date, status, created date, location, call number, loan and renewal counts, and more. The columns, delimiter and extension are configurable; the example config matches the layout collectionHQ Academic receives. |
 
-**How bibs and items link:** MARC **001** holds the FOLIO instance HRID, which is also the `Instance HRID` column in the CSV. The item **barcode** appears both in the CSV and in the bib's 949 field, so collectionHQ can match on either one.
+**How bibs and items link:** every bib carries the FOLIO instance UUID in **999 ff $i**, and the item file's `Bib record ID` column holds the same UUID. collectionHQ Academic links on that. MARC **001** holds the instance HRID, available as the `instance_hrid` column, and with embedded 949 fields the item **barcode** links them as well.
 
 > This is a community project. It is not affiliated with or endorsed by collectionHQ or the FOLIO project. Confirm the file layout with your collectionHQ implementation contact before you go live.
 
@@ -76,12 +76,13 @@ No patron data is read or exported: loans are used only for item ID, dates, rene
 
 ## Field notes
 
-- **Last Circ Date** is the most recent checkout recorded in FOLIO, or the legacy value if that is newer. Set `extract.last_circ_date_from: any` to use the latest checkout, return or check-in scan instead.
-- **Total Checkouts** counts FOLIO loans plus the legacy count, if one is configured. Loans keep their item and dates after patron anonymization, so anonymizing does not reduce the counts.
+- **Last Circ Date** is the most recent checkout recorded in FOLIO, or the legacy value if that is newer. Set `extract.last_circ_date_from: any` to use the latest checkout, return or check-in scan instead. **Loan Return Date** (`last_return_date`) is the most recent return.
+- **Number of loans** (`loans_total`) counts FOLIO loans plus the legacy count, if one is configured. Loans keep their item and dates after patron anonymization, so anonymizing does not reduce the counts.
 - **Created Date** is the item record's creation date, or the legacy note value if one is configured. Without a legacy note, migrated items show the migration date.
-- **Call Number** is FOLIO's *effective* call number: the item-level call number if one exists, otherwise the holdings call number, with prefix and suffix. `call_number_full` adds volume, enumeration, chronology and copy.
-- **Location** is the item's *effective* location, as FOLIO computes it: the item's temporary location if one is set, otherwise its permanent location, otherwise the holdings location. `permanent_location_code` is also available.
+- **Call Number** is FOLIO's *effective* call number: the item-level call number if one exists, otherwise the holdings call number, with prefix and suffix. The example config uses it for cHQ's `Item_level_call_number` column, so items whose call number lives on the holdings record are not left blank. `item_level_call_number` is the item record's own value only, and `call_number_full` adds volume, enumeration, chronology and copy.
+- **Location** is the item's *effective* location, as FOLIO computes it: the item's temporary location if one is set, otherwise its permanent location, otherwise the holdings location. `location_name_code` gives "Name [code]", the form in cHQ's sample. `location_name`, `location_code` and `permanent_location_code` are also available.
 - **Bound-with items** are reported under the instance their holdings belong to.
+- **Empty values** are written as `output.items_csv.null_value`: `None` in the example config, as in cHQ's sample, or blank by default.
 
 ## Scheduling
 

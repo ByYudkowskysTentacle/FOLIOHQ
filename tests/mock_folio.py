@@ -96,7 +96,8 @@ def default_data() -> dict:
         return rec
 
     items = [
-        item(21, U(11), "B0001", lastCheckIn={"dateTime": "2025-02-01T15:00:00.000+00:00"}, copyNumber="1"),
+        item(21, U(11), "B0001", lastCheckIn={"dateTime": "2025-02-01T15:00:00.000+00:00"}, copyNumber="1",
+             itemIdentifier="LEGACY-21", numberOfPieces="2", itemLevelCallNumber="QA76.73.P98 L88 2020"),
         item(22, U(11), "B0002", status="Checked out", volume="v.2"),
         item(23, U(12), "B0003", loc=loc_sci, mtype=dvd,
              effectiveCallNumberComponents={"prefix": "DVD", "callNumber": "PN1997 .X1", "typeId": lc},

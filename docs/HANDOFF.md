@@ -1,6 +1,6 @@
 # Handoff: status and next steps
 
-_Last updated: 23 October 2026 (v0.1.0, first commit)._
+_Last updated: 26 October 2026 (v0.1.0 plus the cHQ Academic layout, unreleased)._
 
 ## Where things stand
 
@@ -14,7 +14,7 @@ On both, every file parsed with pymarc and leader/09 is `a`. Every CSV `Instance
 
 Verified so far:
 - The FOLIO endpoint paths, response keys, field names, query parameters and permission names were checked against the folio-org source in Oct 2026 (see `CLAUDE.md`).
-- 17 automated tests pass against an in-process mock FOLIO. They cover a full run, delta sync, deletion detection, the safety check, retries and re-login, a bad password, custom columns and split files, stale-MARC handling, MARC long-field truncation, legacy date time zones, two-phase SFTP upload and login retry.
+- 20 automated tests pass against an in-process mock FOLIO. They cover the cHQ Academic PSV layout and the 999 ff $i link, a full run, delta sync, deletion detection, the safety check, retries and re-login, a bad password, custom columns and split files, stale-MARC handling, MARC long-field truncation, legacy date time zones, two-phase SFTP upload and login retry.
 - An independent code review found eight defects, and all are fixed with regression tests:
   - fields over 9,999 bytes
   - delivering a partial run
@@ -34,13 +34,28 @@ Verified so far:
 - The connector can be any identifier, as long as it is unique and appears in both the bib file and the item data.
 - The project should be an open-source, GitHub-hosted tool other libraries can use.
 
+## collectionHQ Academic file spec (from cHQ's head of implementation, Oct 2026)
+
+cHQ sent the item fields its Academic product receives (the Library of Michigan layout) and a sample bib and item, `examples/30000010867376_bib.marc` and `examples/30000010867376_item_with_headers.psv`. `config.example.yaml` now reproduces that layout.
+
+- **Fields cHQ uses:** Bib record ID, Barcode, Material_type, Last_circ_date, Number of loans, Number of renewals, Status, Created_date, Location, Item_level_call_number.
+- **Full PSV column list:** Bib record ID, Item record ID, Item record HRID, Item identifier, Barcode, Enumeration, Chronology, Item_level_call_number, Volume, Created_date, Status, Location, Material_type, Number_of_pieces, Copy_number, Loan_name, Last_circ_date, Loan_return_date, Number of loans, Number of renewals.
+- **Link:** `Bib record ID` is the FOLIO instance UUID. It matches the bib's 999 ff $i (which FOLIO's SRS writes), not 001.
+- **Format:** pipe-delimited with a header row, and `None` for empty values. The sample bib has no 949 item fields.
+- **Last_circ_date** is the checkout date. In the sample the loan was returned two months later, and that date is in Loan_return_date. So the `checkout` default is right.
+
 ## Open questions for collectionHQ (ask before go-live)
 
-1. **Link field:** do they match bibs to items on MARC 001 (instance HRID) or on the 949 $a barcode? Is the 949 subfield layout (`$a barcode $b item HRID $c call no. $l location code $t material type $s status`) acceptable, or do they want a different tag or subfields? This is configurable in `output.marc`.
-2. **CSV format:** delimiter, date format, header names, and whether they need extra fields (for example YTD checkouts or loan type). Run `folio-chq fields` for what's available.
+1. ~~**Link field.**~~ Answered: `Bib record ID` = 999 ff $i (instance UUID). Still to confirm: are 949 item fields unwanted? The example config turns them off to match the sample.
+2. **PSV details.** The columns and headers are answered. Still to confirm:
+   - **Dates:** the sample mixes `2022-06-25 12:23:54.249000` with `2024-05-29 16:13:07.512000+00:00`. We write `2022-06-25 12:23:54` (UTC, no fractions or offset). Is that OK?
+   - **Empty values:** is `None` required, or is blank fine?
+   - **Location:** we send "Name [code]", as in the sample. Is that what they expect from every library?
+   - **Item_level_call_number:** we send the effective call number (item, else holdings). Should it be the item record's own call number only, even if that leaves many items blank?
+   - **File names:** the sample is `<barcode>_bib.marc` / `<barcode>_item_with_headers.psv`; we send `chq_bibs_YYYYMMDD.mrc` / `chq_items_YYYYMMDD.psv`. Any naming rules?
 3. **SFTP:** host, port, username, auth method (key or password), remote folder, the host key fingerprint, and whether files should be compressed.
 4. **Cadence:** weekly or monthly, and is a full file each time OK? The tool always sends a complete snapshot built from the cache.
-5. **"Last Circ Date":** last checkout (the current default), or any circulation activity (`extract.last_circ_date_from: any`)?
+5. ~~**"Last Circ Date."**~~ Answered by the sample: last checkout, the default.
 
 ## Questions for the library
 
@@ -54,11 +69,11 @@ Verified so far:
 
 1. ~~**Try a FOLIO reference environment.**~~ Done on 23 Oct 2026 (see above). To repeat it, run `FOLIO_PASSWORD=admin folio-chq -c examples/reference-okapi.yaml run --no-deliver`, or the same with `reference-eureka.yaml`. Current URLs and demo logins: https://folio-org.atlassian.net/wiki/x/9oCeHg.
 2. **Run against the library's tenant** with `--no-deliver`. Spot-check about 20 items against the FOLIO UI: last checkout, status, location, call number, counts. Note how long the first full sync takes.
-3. **Send cHQ a sample** and settle the open questions above. Adjust `config.yaml`; code changes should rarely be needed.
+3. **Send cHQ a sample** built with `config.example.yaml`'s layout and settle the remaining open questions above. Adjust `config.yaml`; code changes should rarely be needed.
 4. **Build and test the Docker image** (`docker build -t folio-chq-extract .`), and pick a scheduling option from `deploy/`.
 5. **Go live:** set `delivery.method: sftp`, pin `host_key_fingerprint`, and set up the webhook.
 6. **Open-source polish** when ready to publish:
-   - Make the repo public.
+   - ~~Make the repo public.~~ Done on 23 Oct 2026.
    - Add issue templates.
    - Consider publishing to PyPI.
    - Post to the FOLIO community (the Reporting SIG and the #reporting Slack channel), since other cHQ libraries may help confirm the file spec.

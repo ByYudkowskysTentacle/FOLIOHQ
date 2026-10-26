@@ -5,6 +5,7 @@ import pytest
 from folio_chq import delivery
 from folio_chq.config import load_config
 from folio_chq.dates import fmt, norm
+from folio_chq.marc import _set_instance_link
 
 
 def test_norm_dates():
@@ -107,3 +108,27 @@ def test_login_retries_transient_errors(monkeypatch):
     monkeypatch.setattr(c.session, "request", lambda *a, **k: resp)
     assert c.get("/x") == {"ok": 1}
     assert calls["n"] == 2
+
+
+def test_instance_link_is_set_and_keeps_other_999_subfields():
+    from pymarc import Field, Indicators, Record, Subfield
+
+    rec = Record()
+    rec.add_field(Field(tag="999", indicators=Indicators("f", "f"), subfields=[Subfield("i", "wrong"), Subfield("s", "srs-id")]))
+    assert _set_instance_link(rec, "inst-uuid") is False
+    assert [(s.code, s.value) for s in rec["999"].subfields] == [("i", "inst-uuid"), ("s", "srs-id")]
+    assert _set_instance_link(rec, "inst-uuid") is True
+
+    bare = Record()
+    bare.add_field(Field(tag="999", indicators=Indicators(" ", " "), subfields=[Subfield("a", "local")]))
+    assert _set_instance_link(bare, "inst-uuid") is False
+    links = [f for f in bare.get_fields("999") if f.indicator1 == "f"]
+    assert len(links) == 1 and links[0]["i"] == "inst-uuid"
+    assert len(bare.get_fields("999")) == 2                      # the local 999 is untouched
+
+
+def test_config_rejects_bad_file_extension(tmp_path):
+    p = tmp_path / "c.yaml"
+    p.write_text("output:\n  items_csv:\n    file_extension: mrc\n")
+    with pytest.raises(ValueError, match="file_extension"):
+        load_config(p)
