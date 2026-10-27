@@ -39,7 +39,7 @@ FOLIO-Exchange only reads from FOLIO, never reads user or patron records, and se
    ```
 
    The loans permission gives loan counts and dates. FOLIO-Exchange drops the borrower from each loan as it arrives and never stores it.
-4. **Your setup:** whether the library is a member of an ECS consortium (then set `srs_include_shared: true` in `site.yaml`), and whether your migration kept old loan counts or created dates in item notes, and under which note types.
+4. **Your setup:** whether the library is a member of an ECS consortium (then set `srs_include_shared: true` under `folio:` in `site.yaml`), and whether your migration kept old loan counts or created dates in item notes, and under which note types.
 
 Many FOLIO hosts accept API traffic only from known networks. Use a PC or server inside the library's network, or on its VPN, and keep it on at the scheduled time.
 
@@ -103,7 +103,7 @@ folio-exchange init C:\FOLIO-Exchange\mylibrary
 | How are the files delivered | **upload to the vendor's SFTP server**, if you have the account; otherwise **not yet**, and run `init` again when you do |
 | SFTP server name, port | `sftp.us.collectionhq.com`, `22`, unless collectionHQ says otherwise |
 | SFTP user name, folder on the server | from collectionHQ (`.` is the login folder) |
-| Does the fingerprint match | **yes** only if it matches the one collectionHQ gave you. Without theirs yet, choose **I don't have the vendor's value yet**: the feed stays paused until you resume it |
+| Does the fingerprint match | **yes** only if it matches the one collectionHQ gave you. Without theirs yet, choose **I don't have the vendor's value yet**: the feed stays paused until you resume it. If setup says delivery stays off (it could not reach the server), run `init` again later |
 | SFTP password | typed at the prompt; stored in the keyring |
 | When should it run | `manual` for now; step 7 sets the schedule |
 | Alerts | email, or a Slack or Teams webhook, for failed runs |
@@ -141,7 +141,8 @@ If an item row looks wrong, check the column against [layout.md](layout.md), whi
 
 Send your implementation contact:
 
-- the layout page, from `folio-exchange recipes summary chq`, which includes your library's own settings;
+- the layout page, from `folio-exchange recipes summary chq`, which shows the recipe's layout with any column or format changes in your feed, and the schedule;
+- the locations you leave out, and any legacy note types you use, which the layout page does not list;
 - the two files from the run in step 4, zipped, so the MARC survives email intact;
 - your questions from [layout.md](layout.md#confirm-with-collectionhq).
 
@@ -152,13 +153,13 @@ Change local settings in `feeds\chq.yaml` as they answer: the folder (`delivery.
 When collectionHQ has confirmed the folder and the host key, and the files look right:
 
 ```powershell
-folio-exchange feeds resume chq          # only if setup left the feed paused
+folio-exchange feeds resume chq          # only if setup paused it over an unconfirmed fingerprint
 folio-exchange check --delivery
 folio-exchange run chq
 folio-exchange release chq
 ```
 
-`run` syncs, builds and checks the files, then holds them: the first delivery to a destination always waits for a person. `release` shows the run, its counts, the files and where they will go, checks that the files are unchanged since the build, and sends them once you confirm. Tell collectionHQ the files are there and ask them to confirm they loaded.
+If setup said delivery stays off, run `folio-exchange init` again first: with delivery off, `run` builds the files and sends nothing. `run` syncs, builds and checks the files, then holds them: the first delivery to a destination always waits for a person. `release` shows the run, its counts, the files and where they will go, checks that the files are unchanged since the build, and sends them once you confirm. Tell collectionHQ the files are there and ask them to confirm they loaded.
 
 ## 7. Schedule it
 
@@ -166,7 +167,7 @@ folio-exchange release chq
 folio-exchange schedule
 ```
 
-It prints the one command that registers an hourly Windows scheduled task (or a cron line on Linux) which runs `folio-exchange run --due`. Run that command yourself. Then set the feed's schedule, for example `schedule: Sun 03:30` in `feeds\chq.yaml`, after agreeing the day and cadence with collectionHQ.
+It prints the one command that registers an hourly Windows scheduled task (or a cron line on Linux) which runs `folio-exchange run --due`. Run that command yourself; on Windows, run it in a Command Prompt (cmd.exe), not PowerShell, whose quoting rules break it. Then set the feed's schedule, for example `schedule: Sun 03:30` in `feeds\chq.yaml`, after agreeing the day and cadence with collectionHQ.
 
 - The task must run as the Windows user who stored the passwords, because keyring entries belong to that user. The printed command does this, and asks for that user's Windows password for Task Scheduler.
 - A missed slot (the PC was off) runs at the next hourly start.
@@ -179,7 +180,7 @@ It prints the one command that registers an hourly Windows scheduled task (or a 
 | `Cannot reach FOLIO at …` | Check the API address, and that the PC is on the library network or VPN. |
 | `FOLIO refused the login …` | Check the user name and tenant id; store the password again with `folio-exchange secret set folio`. A refused password is tried only once per run, so it cannot lock the account. |
 | `DENIED … the account lacks …` | Send the listed permissions to your FOLIO administrator. |
-| A run is **blocked** | The item count fell below 90% of the last delivery, or rows are missing a required value. The message gives both counts. If FOLIO is wrong, fix it and run again; if the drop is real (a big weed), `release chq` sends the blocked run after you confirm. |
+| A run is **blocked** | The item count fell below 90% of the last delivery, or rows are missing a required value. The message says which check failed and gives the counts. If FOLIO is wrong, fix it and run again; if the drop is real (a big weed), `release chq` sends the blocked run after you confirm. |
 | The SFTP login fails | Test with `folio-exchange check --delivery`; store the password again with `folio-exchange secret set chq`. |
 | A host key mismatch | Stop and ask collectionHQ. A changed key can mean the wrong server. |
 

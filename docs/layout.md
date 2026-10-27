@@ -1,6 +1,6 @@
 # The collectionHQ Academic file layout
 
-_Recipe `chq-academic` 1.0.0. Source: collectionHQ's implementation team, Oct 2026 (the Library of Michigan layout). `folio-exchange recipes summary chq` prints the same layout, with your library's own settings, as a page to send collectionHQ._
+_Recipe `chq-academic` 1.0.0. Source: collectionHQ's implementation team, Oct 2026 (the Library of Michigan layout). `folio-exchange recipes summary chq` prints the same layout as a page to send collectionHQ, with any column or format changes in your feed and its schedule._
 
 Each delivery is a complete snapshot of the collection in two files. collectionHQ links them through the FOLIO instance UUID, which is in MARC **999 ff $i** of each bib and in the **Bib record ID** column of each item row.
 
@@ -90,8 +90,8 @@ The layout above is what collectionHQ's implementation team gave in October 2026
 - [ ] Empty values: `None`, as in their sample, or blank.
 - [ ] Location as `Name [code]`, as in their sample.
 - [ ] Item_level_call_number as the effective call number (item, else holdings), rather than only the item record's own, which leaves many items blank.
-- [ ] File names: their sample was `<barcode>_bib.marc` and `<barcode>_item_with_headers.psv`.
-- [ ] That no 949 item fields are wanted in the bibs, and whether they want the files compressed.
+- [ ] File names: their sample was `<barcode>_bib.marc` and `<barcode>_item_with_headers.psv`. FOLIO-Exchange names files from the feed's prefix and the date only, and bib files always end in `.mrc`.
+- [ ] That no 949 item fields are wanted in the bibs, and whether they want the files compressed (FOLIO-Exchange cannot compress them yet).
 - [ ] The server's host key fingerprint.
 
-A change any of these needs is a local setting (the feed's `outputs`, `filters` or `delivery`), except one collectionHQ wants from every library, which belongs in a new version of the recipe.
+Most answers become a local setting (the feed's `outputs`, `filters` or `delivery`). A change collectionHQ wants from every library belongs in a new version of the recipe. Other file names, a `.marc` extension and compressed files would each need a change to FOLIO-Exchange first.
