@@ -1,7 +1,8 @@
 FROM python:3.12-slim
 RUN useradd --create-home --uid 10001 chq
 WORKDIR /app
-COPY pyproject.toml README.md LICENSE ./
+# Build from the legacy/ folder: docker build -t folio-chq-extract .
+COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --no-cache-dir . && mkdir -p /app/data /app/out && chown -R chq /app
 USER chq

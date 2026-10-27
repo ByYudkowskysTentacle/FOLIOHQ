@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install "folio-chq-extract @ git+https://github.com/ByYudkowskysTentacle/FOLIOHQ.git"
+      - run: pip install "folio-chq-extract @ git+https://github.com/ByYudkowskysTentacle/FOLIOHQ.git#subdirectory=legacy"
       # Restore the cache so routine runs are incremental.
       - uses: actions/cache/restore@v6
         with:

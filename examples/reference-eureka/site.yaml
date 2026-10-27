@@ -1,0 +1,25 @@
+# Try the chq-academic recipe on FOLIO's public Eureka test system, with no library account.
+# The system is rebuilt daily from sample data. Its current address and demo login are listed at
+# https://folio-org.atlassian.net/wiki/x/9oCeHg (the password below is that public demo one).
+# From the repository root, in PowerShell:
+#
+#   $env:FOLIO_PASSWORD = "admin"           # on Linux or macOS: export FOLIO_PASSWORD=admin
+#   folio-exchange -s examples/reference-eureka check
+#   folio-exchange -s examples/reference-eureka run chq
+#
+# The files land in examples/reference-eureka/out/chq/<date-time>/. Nothing is sent anywhere.
+
+folio:
+  base_url: https://folio-etesting-snapshot-kong.ci.folio.org
+  tenant: diku
+  username: diku_admin
+  secret: env:FOLIO_PASSWORD
+
+sync:
+  mode: full                     # the system is rebuilt daily, so a cached copy goes stale
+
+paths:
+  recipes: [../../recipes]       # this repository's recipes, ahead of the copies FOLIO-Exchange bundles
+
+alerts:
+  on: never

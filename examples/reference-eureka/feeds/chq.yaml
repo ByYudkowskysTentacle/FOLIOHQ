@@ -1,0 +1,14 @@
+# collectionHQ Academic over FOLIO's sample data. Most sample instances have no items, so this feed
+# also sends bibs without items, to show more MARC from SRS. A library's own feed leaves that off.
+uses: chq-academic@^1.0
+
+filters:
+  bibs_without_items: true
+
+checks:
+  min_item_ratio: 0              # the daily rebuild changes the counts, so the item-count check is off
+
+delivery:
+  transport: none                # build the files and keep them here
+
+schedule: manual

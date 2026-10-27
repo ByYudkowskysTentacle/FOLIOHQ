@@ -1,0 +1,40 @@
+# A collectionHQ Academic feed for FOLIO-Exchange. `folio-exchange init` writes one like it in
+# <site folder>/feeds/chq.yaml; this copy shows every setting a library usually changes.
+# It holds only this library's choices. The file layout collectionHQ agreed lives in the shared
+# recipe (recipes/chq-academic/), so recipe updates never overwrite anything here.
+# Check it with `folio-exchange check`; print the layout for collectionHQ with
+# `folio-exchange recipes summary chq`. Step by step: docs/setup.md.
+
+uses: chq-academic@^1.0          # 1.x updates automatically; a 2.0 waits for `folio-exchange upgrade chq`
+title: collectionHQ Academic
+enabled: true
+file_prefix: chq                 # -> chq_bibs_YYYYMMDD.mrc and chq_items_YYYYMMDD.psv
+
+filters:                         # any key of the recipe's selection (docs/layout.md, "Which records go out")
+  exclude_location_codes: ["ONLINE"]   # e.g. online resources; quote codes that look like numbers ("0123")
+  exclude_item_statuses: []      # usually none: collectionHQ analyses every status
+
+options:
+  timezone: UTC                  # dates in the item file, and how legacy note dates are read, e.g. America/Detroit
+
+legacy:                          # item note type names (Settings > Inventory) that hold values from the old ILS
+  circ_count_note_type: null     # e.g. "Legacy circ count"; added to Number of loans
+  created_date_note_type: null   # e.g. "Legacy created date"; otherwise migrated items show the migration date
+  last_circ_date_note_type: null # e.g. "Legacy last checkout"; used when FOLIO has no newer checkout
+
+checks:
+  min_item_ratio: 0.9            # block a delivery whose item count falls below 90% of the last one
+
+delivery:
+  transport: sftp                # the recipe uploads straight to the final names (upload_mode: direct)
+  host: sftp.us.collectionhq.com # collectionHQ's US server (ftp.collectionhq.com offers plain FTP only)
+  port: 22
+  username: your_chq_username    # from collectionHQ
+  remote_dir: "."                # collectionHQ says which folder bibs and items go in
+  # The server's key, pinned. `folio-exchange init` shows the key the server presents (so does
+  # `check --delivery`, once the password is stored, when the key here does not match);
+  # paste it here only once collectionHQ has confirmed it.
+  host_key_fingerprint: "SHA256:confirm-this-value-with-collectionHQ"
+  secret: keyring                # `folio-exchange secret set chq` stores the SFTP password
+
+schedule: Sun 03:30              # weekly; agree the day and cadence with collectionHQ
