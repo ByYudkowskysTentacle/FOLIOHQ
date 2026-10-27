@@ -2,17 +2,37 @@ name: CI
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
-  test:
+  recipe:
+    # The recipe on FOLIO-Exchange's main branch: validation, the examples, docs/layout.md, the copy
+    # FOLIO-Exchange ships, and byte parity with the legacy tool.
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["3.10", "3.11", "3.12", "3.13"]
+        python: ["3.10", "3.13"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install -e '.[dev]'
+      - run: python -m pip install -r requirements-dev.txt
       - run: ruff check .
-      - run: pytest -q
+      - run: python -m pytest -q
+  legacy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: legacy
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e ".[dev]"
+      - run: ruff check .
+      - run: python -m pytest -q

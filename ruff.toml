@@ -1,0 +1,7 @@
+# The root tests. The legacy tool keeps its own settings in legacy/pyproject.toml.
+line-length = 120
+target-version = "py310"
+
+[lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501", "E731"]

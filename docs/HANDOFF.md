@@ -1,96 +1,75 @@
 # Handoff: status and next steps
 
-_Last updated: 26 October 2026 (v0.1.0 plus the cHQ Academic layout, unreleased)._
+_Last updated: 27 October 2026, when the repository became the home of the `chq-academic` recipe._
 
 ## Where things stand
 
-v0.1.0 is feature-complete for the first use case. It has **not yet been run against the library's own FOLIO tenant, and nothing has been uploaded to collectionHQ yet.** The SFTP login is confirmed (see below).
+On 27 Oct 2026 FOLIOHQ changed from a tool into the home of the **collectionHQ Academic recipe for [FOLIO-Exchange](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange)** and its documentation. The first library's go-live now runs on FOLIO-Exchange. The original tool, `folio-chq-extract`, moved to `legacy/` and stays installable and tested as a fallback until FOLIO-Exchange makes its first real delivery.
 
-**Reference-environment smoke test (23 Oct 2026): passed on both Okapi and Eureka.** `check` and `run --no-deliver` succeeded against FOLIO's public Sunflower-on-Okapi and Eureka Snapshot environments, using the configs in `examples/`. Results:
-- Okapi: 46 bibs (6 SRS, 40 generated) and 28 items.
-- Eureka: 122 bibs (81 SRS, 41 generated) and 25 items.
+**Nothing has been delivered to collectionHQ yet, and neither tool has run against the library's own tenant.** The collectionHQ SFTP login is confirmed (see below).
 
-On both, every file parsed with pymarc and leader/09 is `a`. Every CSV `Instance HRID` matches a MARC 001, and the 949 $a barcodes exactly match the CSV barcodes. Some items have no barcode, because the sample data has none. Created dates show the rebuild date, the same effect a migration has.
-
-Verified so far:
-- The FOLIO endpoint paths, response keys, field names, query parameters and permission names were checked against the folio-org source in Oct 2026 (see `CLAUDE.md`).
-- 26 automated tests pass against an in-process mock FOLIO. They cover the cHQ Academic PSV layout and the 999 ff $i link, the read-only SFTP check, direct (upload-only) SFTP mode, the keyring password, a full run, delta sync, deletion detection, the safety check, retries and re-login, a bad password, custom columns and split files, stale-MARC handling, MARC long-field truncation, legacy date time zones, two-phase SFTP upload and login retry.
-- An independent code review found eight defects, and all are fixed with regression tests:
-  - fields over 9,999 bytes
-  - delivering a partial run
-  - login not retried
-  - legacy date off-by-one
-  - stale MARC in the cache
-  - CSV rows dropped for oversize bibs
-  - a non-atomic SFTP pair
-  - unsorted reference-data paging
-- Clean `pip install .` in a fresh virtualenv works. The Dockerfile has **not** been built yet (no Docker daemon was available).
-- The build step was timed on a synthetic 100k-bib / 200k-item cache: about 30 seconds.
+| Piece | State |
+| --- | --- |
+| Recipe `chq-academic` 1.0.0 | Reproduces the layout collectionHQ gave in Oct 2026. Validated by FOLIO-Exchange, and byte-identical to the legacy tool's output on the mock FOLIO (checked in CI). FOLIO-Exchange ships the same file. |
+| FOLIO-Exchange | 0.1.0.dev0, unreleased; installs from GitHub. 177 offline tests. Run on 26 Oct 2026 against FOLIO's public Eureka Snapshot system: `check`, a full sync of 10,000 MARC records in 30 seconds, a held first delivery, `release`, then a delta run of under 4 seconds. Its own status is in its `docs/notes.md`. |
+| Legacy tool | 30 offline tests. Smoke-tested on 23 Oct 2026 against FOLIO's Sunflower-on-Okapi and Eureka Snapshot systems; every file parsed, and every item row linked to a bib. |
+| Docs | [setup.md](setup.md) (the route to go live), [layout.md](layout.md) (what collectionHQ receives), [the recipe's notes](../recipes/chq-academic/README.md) (how to change it). |
 
 ## Requirements as given by the library
 
 - cHQ accepts CSV or MARC, or both. Full MARC is ideal, and the data may be split across files.
 - The item file needs: **Barcode, Material Type, Last Circ Date, Status, Created Date, Location, Call Number.** The library uses LC classification.
 - The connector can be any identifier, as long as it is unique and appears in both the bib file and the item data.
-- The project should be an open-source, GitHub-hosted tool other libraries can use.
+- The project should be open source, hosted on GitHub, and usable by other libraries.
 
 ## collectionHQ Academic file spec (from cHQ's head of implementation, Oct 2026)
 
-cHQ sent the item fields its Academic product receives (the Library of Michigan layout) and a sample bib and item, `examples/30000010867376_bib.marc` and `examples/30000010867376_item_with_headers.psv`. `config.example.yaml` now reproduces that layout.
+cHQ sent the item fields its Academic product receives (the Library of Michigan layout) and a sample bib and item file. The recipe reproduces that layout; [layout.md](layout.md) describes it column by column.
 
 - **Fields cHQ uses:** Bib record ID, Barcode, Material_type, Last_circ_date, Number of loans, Number of renewals, Status, Created_date, Location, Item_level_call_number.
-- **Full PSV column list:** Bib record ID, Item record ID, Item record HRID, Item identifier, Barcode, Enumeration, Chronology, Item_level_call_number, Volume, Created_date, Status, Location, Material_type, Number_of_pieces, Copy_number, Loan_name, Last_circ_date, Loan_return_date, Number of loans, Number of renewals.
 - **Link:** `Bib record ID` is the FOLIO instance UUID. It matches the bib's 999 ff $i (which FOLIO's SRS writes), not 001.
 - **Format:** pipe-delimited with a header row, and `None` for empty values. The sample bib has no 949 item fields.
-- **Last_circ_date** is the checkout date. In the sample the loan was returned two months later, and that date is in Loan_return_date. So the `checkout` default is right.
+- **Last_circ_date** is the checkout date. In the sample the loan was returned two months later, and that date is in Loan_return_date.
+- **Samples get mangled in transit.** The sample `.marc` arrived with its field and subfield separators turned into newlines and ` $`, so no MARC reader could open it. Ask for vendor files zipped.
 
 ## Open questions for collectionHQ (ask before go-live)
 
-1. ~~**Link field.**~~ Answered: `Bib record ID` = 999 ff $i (instance UUID). Still to confirm: are 949 item fields unwanted? The example config turns them off to match the sample.
-2. **PSV details.** The columns and headers are answered. Still to confirm:
-   - **Dates:** the sample mixes `2022-06-25 12:23:54.249000` with `2024-05-29 16:13:07.512000+00:00`. We write `2022-06-25 12:23:54` (UTC, no fractions or offset). Is that OK?
-   - **Empty values:** is `None` required, or is blank fine?
-   - **Location:** we send "Name [code]", as in the sample. Is that what they expect from every library?
-   - **Item_level_call_number:** we send the effective call number (item, else holdings). Should it be the item record's own call number only, even if that leaves many items blank?
-   - **File names:** the sample is `<barcode>_bib.marc` / `<barcode>_item_with_headers.psv`; we send `chq_bibs_YYYYMMDD.mrc` / `chq_items_YYYYMMDD.psv`. Any naming rules?
-3. **SFTP.** The connection is settled, and the login was tested with `folio-chq check --sftp` on 26 Oct 2026:
-   - **Host:** `sftp.us.collectionhq.com`, port 22 (AWS Transfer Family). The other host cHQ listed, `ftp.collectionhq.com`, is plain FTP only.
-   - **Account:** a password service account, described as upload-only. Its password is in Windows Credential Manager (`folio-chq-sftp`) on the setup PC, and `config.yaml` uses `upload_mode: direct`.
-   - **Host key:** RSA `SHA256:qt5HxgZ6ktlwhFUUAwdjMZlL2KkAbKXhy2TsRxWoITI`. This was read from the server, not from cHQ, so ask them to confirm it.
-   - **Login folder contents:** `.bash_logout`, `.bashrc`, `.profile`, `.ssh`, `holds`, `transactions`. Listing works, so the account is not strictly upload-only.
-   - **Still to ask:**
-     - Which folder should the bib and item files go in (`remote_dir`)? Not `holds` or `transactions`, which look like other feeds.
-     - Should files be compressed?
-     - Does their pickup ignore partial uploads? This only matters if we switch to `staged` mode.
-4. **Cadence:** weekly or monthly, and is a full file each time OK? The tool always sends a complete snapshot built from the cache.
-5. ~~**"Last Circ Date."**~~ Answered by the sample: last checkout, the default.
+The general list, for any library, is in [layout.md](layout.md#confirm-with-collectionhq). For the first library:
+
+1. **Folder:** which folder on the server bibs and items go in (`delivery.remote_dir`). Not `holds` or `transactions`, which look like other feeds.
+2. **Host key:** confirm RSA `SHA256:qt5HxgZ6ktlwhFUUAwdjMZlL2KkAbKXhy2TsRxWoITI`, which was read from the server, not received from cHQ.
+3. **Cadence:** weekly or monthly, and is a full snapshot each time OK?
+4. **PSV details:** the date format (we write `2022-06-25 12:23:54`, UTC, no fractions or offset), `None` or blank for empty values, `Name [code]` for Location, the effective call number for Item_level_call_number, and any file naming rules.
+5. **Bibs and files:** are 949 item fields unwanted, as the sample suggests? Should files be compressed?
+
+## collectionHQ SFTP (settled 26 Oct 2026)
+
+- **Host:** `sftp.us.collectionhq.com`, port 22 (AWS Transfer Family). `ftp.collectionhq.com` is plain FTP only.
+- **Account:** a password service account, described as upload-only, so the recipe uses `upload_mode: direct`. Listing the login folder works; it holds `.bash_logout`, `.bashrc`, `.profile`, `.ssh`, `holds`, `transactions`.
+- **Login test:** `folio-chq check --sftp` succeeded on 26 Oct 2026. The password is in Windows Credential Manager on the setup PC under the legacy tool's name (`folio-chq-sftp`). FOLIO-Exchange keeps its own entry, so `folio-exchange init` (or `secret set chq`) stores it again.
 
 ## Questions for the library
 
-- **FOLIO setup:** hosting (EBSCO, Index Data, self-hosted), release, Okapi or Eureka, and the tenant ID. Is the library in an ECS consortium? If so, set `srs_include_shared: true`.
-- **Service account:** create a read-only service account with the permissions listed in the README.
-- **Migrated data:** were legacy circulation counts or created dates stored in item notes during migration? If so, give the note type names and set them under `legacy:`.
-- **Filters:** which locations or statuses to exclude (for example e-resource locations, Withdrawn, On order).
-- **Where it runs:** a campus server (cron or systemd), Docker, or a self-hosted GitHub runner. Who gets failure alerts (a Slack or Teams webhook)?
+- **FOLIO setup:** hosting (EBSCO, Index Data, self-hosted), release, and the tenant ID. The tenant is on Eureka. Is the library in an ECS consortium? If so, set `srs_include_shared: true`.
+- **Service account:** a read-only account with the permissions in [setup.md](setup.md#from-your-folio-administrator-or-hosting-provider).
+- **Migrated data:** were legacy circulation counts or created dates stored in item notes during migration? If so, which note types?
+- **Filters:** which locations or statuses to leave out (for example e-resource locations).
+- **Where it runs:** the library PC that holds the keyring entries, with the hourly scheduled task. Who gets failure alerts (email, or a Slack or Teams webhook)?
 
-## Suggested next steps (in order)
+## Next steps (in order)
 
-1. ~~**Try a FOLIO reference environment.**~~ Done on 23 Oct 2026 (see above). To repeat it, run `FOLIO_PASSWORD=admin folio-chq -c examples/reference-okapi.yaml run --no-deliver`, or the same with `reference-eureka.yaml`. Current URLs and demo logins: https://folio-org.atlassian.net/wiki/x/9oCeHg.
-2. **Run against the library's tenant** with `--no-deliver`. Spot-check about 20 items against the FOLIO UI: last checkout, status, location, call number, counts. Note how long the first full sync takes.
-3. **Send cHQ a sample** built with `config.example.yaml`'s layout and settle the remaining open questions above. Adjust `config.yaml`; code changes should rarely be needed.
-4. **Build and test the Docker image** (`docker build -t folio-chq-extract .`), and pick a scheduling option from `deploy/`.
-5. **Go live:** set `remote_dir` once cHQ confirms it, run as the Windows user that holds the Credential Manager entry (or use `SFTP_PASSWORD` on a server), and set up the webhook. The host and fingerprint are already set.
-6. **Open-source polish** when ready to publish:
-   - ~~Make the repo public.~~ Done on 23 Oct 2026.
-   - Add issue templates.
-   - Consider publishing to PyPI.
-   - Post to the FOLIO community (the Reporting SIG and the #reporting Slack channel), since other cHQ libraries may help confirm the file spec.
+1. **Dry run against the library's tenant** with FOLIO-Exchange: [setup.md](setup.md) steps 1 to 4. The operator runs it; the password goes from their keyboard into Windows Credential Manager and is never shared. Spot-check about 20 items against the FOLIO UI, and note how long the first full sync takes.
+2. **Send cHQ a sample** and the layout page (`folio-exchange recipes summary chq`), and settle the open questions above. Adjust the feed file; recipe changes should be rare.
+3. **First delivery:** `run chq`, then `release chq` once cHQ has confirmed the folder and host key. cHQ accepting it is gate 1 of the FOLIO-Exchange roadmap.
+4. **Schedule** the hourly task (`folio-exchange schedule`) on the library PC, as the user that holds the Credential Manager entries, and set up alerts.
+5. **Retire the legacy tool** once cHQ has accepted a delivery from FOLIO-Exchange: remove `legacy/`, `tests/test_parity.py` and the legacy CI job, and keep a tag on the last commit that has it.
+6. **Community:** add issue templates, and post to the FOLIO community (the Reporting SIG and the #reporting Slack channel), since other cHQ libraries may help confirm the layout.
+
+**Fallback.** If FOLIO-Exchange is blocked when the library is ready to deliver, the legacy tool sends the same files: see [legacy/README.md](../legacy/README.md).
 
 ## Ideas and backlog (not started)
 
-- Optional check-in history (`/check-in-storage/check-ins`) to count in-house use.
-- An option to compress output files (gzip or zip) if cHQ wants it.
-- Email notification (SMTP) in addition to webhooks.
-- Support for the bound-with relationship (`/inventory-storage/bound-with-parts`). Items currently report under their own holdings' instance.
-- A `--dry-run` sample mode that writes the first N bibs and items, for quick previews to cHQ.
-- A changes-only delivery mode, if cHQ ever asks for it.
+- Add cHQ's original sample files under `recipes/chq-academic/samples/` if cHQ agrees they can be published, so FOLIO-Exchange's preview checks a feed's header row against them.
+- Compressed output (gzip or zip), if cHQ wants it. It needs a FOLIO-Exchange feature first.
+- Check-in history (`/check-in-storage/check-ins`) to count in-house use: a new field in FOLIO-Exchange, then a new major recipe version.
+- Bound-with support (`/inventory-storage/bound-with-parts`). Items currently report under their own holdings' instance.

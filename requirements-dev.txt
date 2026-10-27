@@ -1,0 +1,5 @@
+# Everything the tests need, installed from the repository root:
+#   pip install -r requirements-dev.txt
+# FOLIO-Exchange is the engine the recipe runs on; the legacy tool is here for the byte-parity test.
+folio-exchange @ git+https://github.com/ByYudkowskysTentacle/FOLIO-Exchange.git@main
+-e ./legacy[dev]

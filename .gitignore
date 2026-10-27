@@ -1,8 +1,27 @@
+# Secrets and local settings – never commit
 config.yaml
+site.yaml
+!examples/reference-eureka/site.yaml
+feeds/
+!examples/feeds/
+!examples/reference-eureka/feeds/
 .env
+.env.*
+*credentials*.txt
+*secret*.txt
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Runtime data
 data/
 out/
+logs/
 *.sqlite*
+run.lock
+
+# Python
 __pycache__/
 *.egg-info/
 .pytest_cache/
