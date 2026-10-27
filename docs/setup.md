@@ -103,8 +103,8 @@ folio-exchange init C:\FOLIO-Exchange\mylibrary
 | How are the files delivered | **upload to the vendor's SFTP server**, if you have the account; otherwise **not yet**, and run `init` again when you do |
 | SFTP server name, port | `sftp.us.collectionhq.com`, `22`, unless collectionHQ says otherwise |
 | SFTP user name, folder on the server | from collectionHQ (`.` is the login folder) |
-| Does the fingerprint match | **yes** only if it matches the one collectionHQ gave you. Without theirs yet, choose **I don't have the vendor's value yet**: the feed stays paused until you resume it. If setup says delivery stays off (it could not reach the server), run `init` again later |
-| SFTP password | typed at the prompt; stored in the keyring |
+| Does the fingerprint match | **yes** only if it matches the one collectionHQ gave you. Without theirs yet, choose **I don't have the vendor's value yet**: FOLIO-Exchange keeps the key but never logs in to the server, and the feed stays paused, until you run `init` again and answer that it matches. If setup says delivery stays off (it could not reach the server), run `init` again later |
+| SFTP password | typed at the prompt; stored in the keyring. Leave it blank to store it later with `folio-exchange secret set chq`; the feed stays paused until then |
 | When should it run | `manual` for now; step 7 sets the schedule |
 | Alerts | email, or a Slack or Teams webhook, for failed runs |
 
@@ -124,7 +124,7 @@ folio-exchange preview chq
 folio-exchange run chq --no-deliver
 ```
 
-- `check` logs in, tests every endpoint the recipe needs and shows record counts. `check --delivery` logs in to collectionHQ's server and lists the folder, without uploading anything.
+- `check` logs in, tests every endpoint the recipe needs and shows record counts. `check --delivery` logs in to collectionHQ's server and lists the folder, without uploading anything. While the key is unconfirmed it does not log in; it shows the server's current key next to the stored one.
 - `preview` builds files from a small sample and prints a few item rows.
 - `run --no-deliver` downloads everything into the local cache and builds the full files. The first run fetches the whole catalogue: on FOLIO's reference system, 10,000 bibs with their MARC took 30 seconds, so 300,000 might take around a quarter of an hour, depending on your host. Later runs fetch only what changed.
 
@@ -153,7 +153,8 @@ Change local settings in `feeds\chq.yaml` as they answer: the folder (`delivery.
 When collectionHQ has confirmed the folder and the host key, and the files look right:
 
 ```powershell
-folio-exchange feeds resume chq          # only if setup paused it over an unconfirmed fingerprint
+folio-exchange init C:\FOLIO-Exchange\mylibrary   # only if the key was unconfirmed: answer that it matches
+folio-exchange feeds resume chq          # if the feed is still paused
 folio-exchange check --delivery
 folio-exchange run chq
 folio-exchange release chq

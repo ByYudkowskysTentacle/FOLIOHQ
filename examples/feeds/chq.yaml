@@ -31,9 +31,9 @@ delivery:
   port: 22
   username: your_chq_username    # from collectionHQ
   remote_dir: "."                # collectionHQ says which folder bibs and items go in
-  # The server's key, pinned. `folio-exchange init` shows the key the server presents (so does
-  # `check --delivery`, once the password is stored, when the key here does not match);
-  # paste it here only once collectionHQ has confirmed it.
+  # The server's key, pinned. `folio-exchange init` shows the key the server presents and asks
+  # whether it matches collectionHQ's. Until it does, init adds `host_key_confirmed: false` and
+  # nothing logs in; `check --delivery` then shows the server's key next to this one.
   host_key_fingerprint: "SHA256:confirm-this-value-with-collectionHQ"
   secret: keyring                # `folio-exchange secret set chq` stores the SFTP password
 

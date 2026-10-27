@@ -60,6 +60,7 @@ These are the recipe's defaults. A feed's `filters` can change any of them.
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `include_suppressed_instances` | `false` | Leave out instances suppressed from discovery or staff-suppressed, with their items |
+| `include_suppressed_holdings` | `true` | Send items under a holdings record suppressed from discovery, as the legacy tool did |
 | `include_suppressed_items` | `false` | Leave out items suppressed from discovery |
 | `include_items_without_barcode` | `true` | Send items with no barcode |
 | `bibs_without_items` | `false` | Send a bib only when at least one of its items goes out |
