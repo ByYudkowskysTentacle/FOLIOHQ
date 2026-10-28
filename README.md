@@ -1,6 +1,6 @@
-# FOLIOHQ: collectionHQ Academic for FOLIO
+# cHQ FOLIO Exchange Recipe: collectionHQ Academic for FOLIO
 
-What a [FOLIO](https://www.folio.org/) library needs to send its catalogue and circulation data to **collectionHQ Academic** on a schedule, with [FOLIO-Exchange](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange). It holds the shared `chq-academic` recipe, a step-by-step setup guide, and a description of the files collectionHQ receives.
+What a [FOLIO](https://www.folio.org/) library needs to send its catalogue and circulation data to **collectionHQ Academic** on a schedule, with [FOLIO-Exchange](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange). It holds the shared `chq-academic` recipe, a step-by-step setup guide, and a description of the files collectionHQ receives. This repository was called FOLIOHQ until 28 October 2026; links to the old name still lead here.
 
 > This is a community project. It is not affiliated with or endorsed by collectionHQ or the FOLIO project. Confirm the file layout with your collectionHQ implementation contact before you go live.
 

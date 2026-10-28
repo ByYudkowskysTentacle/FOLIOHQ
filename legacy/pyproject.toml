@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/ByYudkowskysTentacle/FOLIOHQ"
+Repository = "https://github.com/ByYudkowskysTentacle/cHQ-FOLIO-Exchange-Recipe"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]

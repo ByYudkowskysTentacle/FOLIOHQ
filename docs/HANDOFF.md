@@ -4,7 +4,7 @@ _Last updated: 27 October 2026, when the repository became the home of the `chq-
 
 ## Where things stand
 
-On 27 Oct 2026 FOLIOHQ changed from a tool into the home of the **collectionHQ Academic recipe for [FOLIO-Exchange](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange)** and its documentation. The first library's go-live now runs on FOLIO-Exchange. The original tool, `folio-chq-extract`, moved to `legacy/` and stays installable and tested as a fallback until FOLIO-Exchange makes its first real delivery.
+On 27 Oct 2026 this repository (then FOLIOHQ; renamed cHQ FOLIO Exchange Recipe on 28 Oct 2026) changed from a tool into the home of the **collectionHQ Academic recipe for [FOLIO-Exchange](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange)** and its documentation. The first library's go-live now runs on FOLIO-Exchange. The original tool, `folio-chq-extract`, moved to `legacy/` and stays installable and tested as a fallback until FOLIO-Exchange makes its first real delivery.
 
 **Nothing has been delivered to collectionHQ yet, and neither tool has run against the library's own tenant.** The collectionHQ SFTP login is confirmed (see below).
 

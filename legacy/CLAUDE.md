@@ -1,6 +1,6 @@
 # CLAUDE.md (legacy tool)
 
-`folio-chq-extract`, FOLIOHQ's original tool for collectionHQ Academic, kept here as a fallback until FOLIO-Exchange makes its first real delivery. New work goes into the `chq-academic` recipe (`../recipes/`) or into FOLIO-Exchange, not here. Change this tool only to fix a bug that blocks a library still running it, and keep its output byte-identical to the recipe's (`../tests/test_parity.py` checks it). The repository's ground rules and the FOLIO API facts are in `../CLAUDE.md`.
+`folio-chq-extract`, the repository's original tool for collectionHQ Academic (from when it was called FOLIOHQ), kept here as a fallback until FOLIO-Exchange makes its first real delivery. New work goes into the `chq-academic` recipe (`../recipes/`) or into FOLIO-Exchange, not here. Change this tool only to fix a bug that blocks a library still running it, and keep its output byte-identical to the recipe's (`../tests/test_parity.py` checks it). The repository's ground rules and the FOLIO API facts are in `../CLAUDE.md`.
 
 It writes two files: `chq_bibs_YYYYMMDD.mrc` (MARC 21, UTF-8, ISO 2709; optionally one 949 per item with `output.marc.embed_items`) and `chq_items_YYYYMMDD.psv` (one row per item; `config.example.yaml` matches the cHQ Academic layout), then uploads them over SFTP. `MarcBuilder.finalize` enforces 001 = instance HRID and 999 ff $i = instance UUID = the `Bib record ID` column.
 

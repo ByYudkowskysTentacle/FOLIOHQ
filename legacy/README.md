@@ -1,6 +1,6 @@
 # folio-chq-extract (legacy)
 
-> **Legacy tool.** This is FOLIOHQ's original one-vendor tool (phase 0). New setups use [FOLIO-Exchange](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange) with the `chq-academic` recipe kept in this repository: start with the [main README](../README.md) and the [setup guide](../docs/setup.md). This tool stays installable and tested as a fallback until FOLIO-Exchange makes its first real delivery to collectionHQ. Both write byte-identical files from the same FOLIO data, and CI checks it.
+> **Legacy tool.** This is the repository's original one-vendor tool (phase 0), from when it was called FOLIOHQ. New setups use [FOLIO-Exchange](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange) with the `chq-academic` recipe kept in this repository: start with the [main README](../README.md) and the [setup guide](../docs/setup.md). This tool stays installable and tested as a fallback until FOLIO-Exchange makes its first real delivery to collectionHQ. Both write byte-identical files from the same FOLIO data, and CI checks it.
 
 Extracts bibliographic and item/circulation data from the [FOLIO](https://www.folio.org/) library services platform for **collectionHQ Academic**, and keeps it up to date on a schedule.
 
@@ -28,7 +28,7 @@ Each run produces two files and sends them to collectionHQ over SFTP:
 ## Quick start
 
 ```bash
-pip install "folio-chq-extract @ git+https://github.com/ByYudkowskysTentacle/FOLIOHQ.git#subdirectory=legacy"
+pip install "folio-chq-extract @ git+https://github.com/ByYudkowskysTentacle/cHQ-FOLIO-Exchange-Recipe.git#subdirectory=legacy"
                                    # or, from a clone: pip install -e ./legacy
 cp config.example.yaml config.yaml # from legacy/ in a clone; then edit it
 export FOLIO_PASSWORD='...'  SFTP_PASSWORD='...'   # or keep both passwords in the OS keyring (below)
@@ -98,7 +98,7 @@ On a desktop or server with an OS credential store, install the `keyring` extra 
 | collectionHQ SFTP | `SFTP_PASSWORD` | `folio-chq-sftp` | `delivery.sftp.username` |
 
 ```bash
-pip install "folio-chq-extract[keyring] @ git+https://github.com/ByYudkowskysTentacle/FOLIOHQ.git#subdirectory=legacy"
+pip install "folio-chq-extract[keyring] @ git+https://github.com/ByYudkowskysTentacle/cHQ-FOLIO-Exchange-Recipe.git#subdirectory=legacy"
 keyring set folio-chq-folio <FOLIO service account username>   # prompts for the password; nothing is echoed
 keyring set folio-chq-sftp <your cHQ username>
 folio-chq check            # says where the FOLIO password came from, then tests the login and permissions
@@ -136,7 +136,7 @@ FOLIO-Exchange writes the same two files from the same data, and adds a hold on 
 
 1. Follow the [setup guide](../docs/setup.md). `folio-exchange init` asks for the FOLIO address, tenant and service account you already use.
 2. Store both passwords again. FOLIO-Exchange keeps them under its own keyring names (`folio-exchange/folio` and `folio-exchange/sftp`), not `folio-chq-folio` and `folio-chq-sftp`.
-3. Copy your local choices into the feed file: location and status filters, legacy note types, the SFTP folder and host key. FOLIO-Exchange's [mapping table](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange/blob/main/docs/design.md#from-foliohq) lists where each `config.yaml` setting goes.
+3. Copy your local choices into the feed file: location and status filters, legacy note types, the SFTP folder and host key. FOLIO-Exchange's [mapping table](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange/blob/main/docs/design.md#from-folio-chq-extract) lists where each `config.yaml` setting goes.
 4. Expect the first FOLIO-Exchange delivery to be held for you to release. The item-count baseline for the safety check starts again from that delivery.
 
 Stop this tool's schedule before FOLIO-Exchange's starts, so collectionHQ never receives files from both.
