@@ -4,7 +4,7 @@ Guidance for Claude Code (and humans) working in this repository. Read `docs/HAN
 
 ## What this is
 
-FOLIOHQ is the home of the **collectionHQ Academic recipe for [FOLIO-Exchange](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange)** and the documentation for using it: how a FOLIO library sets up, checks and schedules its feed to collectionHQ Academic. FOLIO-Exchange is the engine (sync, build, checks, delivery); this repository says what collectionHQ's files look like and how to get them there.
+cHQ FOLIO Exchange Recipe (called FOLIOHQ until 28 Oct 2026) is the home of the **collectionHQ Academic recipe for [FOLIO-Exchange](https://github.com/ByYudkowskysTentacle/FOLIO-Exchange)** and the documentation for using it: how a FOLIO library sets up, checks and schedules its feed to collectionHQ Academic. FOLIO-Exchange is the engine (sync, build, checks, delivery); this repository says what collectionHQ's files look like and how to get them there.
 
 - `recipes/chq-academic/<version>.yaml`: the recipe, one file per version, in the layout FOLIO-Exchange's recipe library reads. This is the source; FOLIO-Exchange ships a copy in `src/folio_exchange/recipes/chq-academic/`.
 - `docs/setup.md` (the route to go live), `docs/layout.md` (every column and where it comes from), `docs/HANDOFF.md` (status).

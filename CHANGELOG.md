@@ -2,6 +2,9 @@
 
 Changes to this repository. Each recipe version's own changes are in its `changelog`, and the legacy tool's in `legacy/CHANGELOG.md`.
 
+## 2026-10-28
+- Renamed from FOLIOHQ to cHQ FOLIO Exchange Recipe (`ByYudkowskysTentacle/cHQ-FOLIO-Exchange-Recipe` on GitHub). GitHub sends the old name's links, clones and API calls here.
+
 ## 2026-10-27
 - FOLIOHQ became the home of the collectionHQ Academic recipe for FOLIO-Exchange and its documentation.
 - `recipes/chq-academic/1.0.0.yaml`: the recipe, the source of the copy FOLIO-Exchange ships, with notes on changing it.

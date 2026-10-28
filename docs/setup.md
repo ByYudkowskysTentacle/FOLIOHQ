@@ -146,7 +146,7 @@ Send your implementation contact:
 - the two files from the run in step 4, zipped, so the MARC survives email intact;
 - your questions from [layout.md](layout.md#confirm-with-collectionhq).
 
-Change local settings in `feeds\chq.yaml` as they answer: the folder (`delivery.remote_dir`), the host key, filters, or the item file's columns and formats under `outputs.items`. Run `folio-exchange check` after every edit, and `run chq --no-deliver` to see the result. A change collectionHQ wants from every library belongs in the recipe instead: [open an issue](https://github.com/ByYudkowskysTentacle/FOLIOHQ/issues).
+Change local settings in `feeds\chq.yaml` as they answer: the folder (`delivery.remote_dir`), the host key, filters, or the item file's columns and formats under `outputs.items`. Run `folio-exchange check` after every edit, and `run chq --no-deliver` to see the result. A change collectionHQ wants from every library belongs in the recipe instead: [open an issue](https://github.com/ByYudkowskysTentacle/cHQ-FOLIO-Exchange-Recipe/issues).
 
 ## 6. The first delivery
 
